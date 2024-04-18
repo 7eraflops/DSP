@@ -71,7 +71,6 @@ function pulse_wave_bl(t; ρ=0.2, A=1.0, T=1.0, band=20.0)
     missing
 end
 
-
 function impulse_repeater_bl(g::Function, t0::Real, t1::Real, band::Real)::Function
     missing
 end
@@ -79,8 +78,6 @@ end
 function rand_signal_bl(f1::Real, f2::Real)::Function
     missing
 end
-
-
 
 # Sygnały dyskretne
 kronecker(n::Integer)::Real = ifelse(n == 0, 1, 0)
@@ -101,18 +98,34 @@ power(x::AbstractVector)::Real = sum(abs2, x) / length(x)
 rms(x::AbstractVector)::Real = sqrt(sum(abs2, x) / length(x))
 
 function running_mean(x::AbstractVector, M::Integer)::Vector
-    missing
+    result::AbstractVector = zeros(length(x))
+    for k in 1:length(x)
+        n₁ = k - M < 1 ? 1 : k - M
+        n₂ = k + M > lastindex(x) ? lastindex(x) : k + M
+        result[k] = (1 / (n₂ - n₁ + 1)) * sum(x[n₁:n₂])
+    end
+    return result
 end
 
 function running_energy(x::AbstractVector, M::Integer)::Vector
-    missing
+    result::AbstractVector = zeros(length(x))
+    for k in 1:length(x)
+        n₁ = k - M < 1 ? 1 : k - M
+        n₂ = k + M > lastindex(x) ? lastindex(x) : k + M
+        result[k] = sum(abs2, x[n₁:n₂])
+    end
+    return result
 end
 
 function running_power(x::AbstractVector, M::Integer)::Vector
-    missing
+    result::AbstractVector = zeros(length(x))
+    for k in 1:length(x)
+        n₁ = k - M < 1 ? 1 : k - M
+        n₂ = k + M > lastindex(x) ? lastindex(x) : k + M
+        result[k] = (1 / (n₂ - n₁ + 1)) * sum(abs2, x[n₁:n₂])
+    end
+    return result
 end
-
-
 
 # Próbkowanie
 function interpolate(
@@ -124,7 +137,7 @@ function interpolate(
 end
 
 # Kwantyzacja
-quantize(x::Real; L::AbstractVector)::Real = missing
+quantize(L::AbstractVector)::Function = x -> L[argmin(abs.(-L .+ x))]
 SQNR(N::Integer)::Real = 6.02N
 SNR(Psignal, Pnoise)::Real = 10 * log10(Psignal / Pnoise)
 
@@ -163,4 +176,22 @@ end
 
 function ifft(X::AbstractVector)::Vector
     idft(X) # Może da rade lepiej?
+end
+
+fftfreq(N::Integer, fs::Real)::Vector = missing
+rfftfreq(N::Integer, fs::Real)::Vector = missing
+amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = missing
+power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = missing
+psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = missing
+
+function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector
+    missing
+end
+
+function stft(x::AbstractVector, w::AbstractVector, L::Integer)::Matrix
+    missing
+end
+
+function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integer)::AbstractVector{<:Real}
+    missing
 end
