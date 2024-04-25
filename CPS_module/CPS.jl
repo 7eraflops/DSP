@@ -6,7 +6,7 @@ author = Dict{Symbol,String}(
     :index => "417096",
     :name => "Michał Charaszkiewicz",
     :email => "mchar@student.agh.edu.pl",
-    :group => "0",
+    :group => "1",
 )
 
 # Sygnały ciągłe
@@ -72,12 +72,16 @@ function pulse_wave_bl(t; ρ=0.2, A=1.0, T=1.0, band=20.0)
     return signal
 end
 
-function impulse_repeater_bl(g::Function, t0::Real, t1::Real, band::Real)::Function
+function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Function
     missing
 end
 
 function rand_signal_bl(f1::Real, f2::Real)::Function
-    missing
+    f = f1 .+ rand(1000) .* (f2 - f1)
+    ϕ = -π .+ rand(1000) * 2π
+    A = randn(1000)
+    A = A ./ sqrt(0.5 * sum(A .^ 2))
+    return t -> sum(A .* sin.(2π * f .* t .+ ϕ))
 end
 
 # Sygnały dyskretne
@@ -133,8 +137,15 @@ function interpolate(
     m::AbstractVector,
     s::AbstractVector,
     kernel::Function=sinc
-)::Real
-    missing
+)::Function
+    return x -> begin
+        sum = 0.0
+        Δt = m[2] - m[1]
+        for i in eachindex(m)
+            sum += s[i] * kernel((x - m[i]) / Δt)
+        end
+        return sum
+    end
 end
 
 # Kwantyzacja
