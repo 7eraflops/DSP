@@ -13,14 +13,14 @@ author = Dict{Symbol,String}(
 cw_rectangular(t::Real; T=1.0)::Real = abs(t) < T / 2 ? 1 : (abs(t) == T / 2 ? 0.5 : 0)
 cw_triangle(t::Real; T=1.0)::Real = abs(t) < T ? 1 - abs(t) : 0
 cw_literka_M(t::Real; T=1.0)::Real = abs(t) < T ? (t < 0 ? -t + 1 : t + 1) : 0
-cw_literka_U(t::Real; T=1.0)::Real = missing
+cw_literka_U(t::Real; T=1.0)::Real = abs(t) < T ? t^2 : 0
 
 ramp_wave(t::Real)::Real = 2 * rem(t, 1, RoundNearest)
 sawtooth_wave(t::Real)::Real = -2 * rem(t, 1, RoundNearest)
 triangular_wave(t::Real)::Real = ifelse(mod(t + 1 / 4, 1.0) < 1 / 2, 4mod(t + 1 / 4, 1.0) - 1, -4mod(t + 1 / 4, 1.0) + 3)
 square_wave(t::Real)::Real = ifelse(mod(t, 1) < 0.5, 1, -1)
 pulse_wave(t::Real, ρ::Real)::Real = ifelse(mod(t, 1) < ρ, 1, 0)
-impulse_repeater(g::Function, t1::Real, t2::Real)::Function = missing
+impulse_repeater(g::Function, t1::Real, t2::Real)::Function = x -> g(mod(x - t1, t2 - t1) + t1)
 
 function ramp_wave_bl(t; A=1.0, T=1.0, band=20.0)
     signal = 0
