@@ -1,6 +1,7 @@
 # module CPS
 
 using LinearAlgebra
+using QuadGK
 
 author = Dict{Symbol,String}(
     :index => "417096",
@@ -26,7 +27,7 @@ function ramp_wave_bl(t; A=1.0, T=1.0, band=20.0)
     signal = 0
     temp = 0
     n = 1
-    while (arg = 2π * n * (1 / T)) < band
+    while (arg = 2π * n * (1 / T)) < band * 2π
         temp += (-1)^n * sin.(arg * t) / n
         n += 1
     end
@@ -37,7 +38,7 @@ end
 function sawtooth_wave_bl(t; A=1.0, T=1.0, band=20.0)
     signal = 0
     n = 1
-    while (arg = 2π * n * (1 / T)) < band
+    while (arg = 2π * n * (1 / T)) < band * 2π
         signal += (-1)^n * sin.(arg * t) / n
         n += 1
     end
@@ -48,7 +49,7 @@ end
 function triangular_wave_bl(t; A=1.0, T=1.0, band=20.0)
     signal = 0
     n = 1
-    while (arg = 2π * n * (1 / T)) < band
+    while (arg = 2π * n * (1 / T)) < band * 2π
         signal += (-1)^((n - 1) / 2) * sin.(arg * t) / n^2
         n += 2
     end
@@ -59,7 +60,7 @@ end
 function square_wave_bl(t; A=1.0, T=1.0, band=20.0)
     signal = 0
     n = 1
-    while (arg = 2π * (2n - 1) * (1 / T)) < band
+    while (arg = 2π * (2n - 1) * (1 / T)) < band * 2π
         signal += sin.(arg * t) / (2n - 1)
         n += 1
     end
@@ -73,9 +74,31 @@ function pulse_wave_bl(t; ρ=0.2, A=1.0, T=1.0, band=20.0)
 end
 
 function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Function
-    missing
+    T::Float64 = t2 - t1
+    ω₀::Float64 = (2π / T)
+    n_terms::Integer = div(band * 2π, ω₀)
+
+    a0 = 1 / T * quadgk(g, t1, t2)[1]
+    an_coeffs = zeros(Float64, n_terms)
+    bn_coeffs = zeros(Float64, n_terms)
+
+    for n in 1:n_terms
+        an_coeffs[n] = 2 / T * quadgk(t -> g(t) * cos(ω₀ * n * t), t1, t2)[1]
+        bn_coeffs[n] = 2 / T * quadgk(t -> g(t) * sin(ω₀ * n * t), t1, t2)[1]
+    end
+
+    function fourier_series_output(t::Float64)
+        result = a0 / 2
+        for n in 1:n_terms
+            result += an_coeffs[n] * cos(ω₀ * n * t) + bn_coeffs[n] * sin(ω₀ * n * t)
+        end
+        return result
+    end
+
+    return fourier_series_output
 end
 
+#TODO: naive approach, might change later
 function rand_signal_bl(f1::Real, f2::Real)::Function
     f = f1 .+ rand(1000) .* (f2 - f1)
     ϕ = -π .+ rand(1000) * 2π
@@ -99,8 +122,8 @@ blackman(N::Integer)::AbstractVector{<:Real} = [0.42 - 0.5cos(2π * n / (N - 1))
 mean(x::AbstractVector)::Number = sum(x) / length(x)
 peak2peak(x::AbstractVector)::Real = abs(max(x) - min(x))
 energy(x::AbstractVector)::Real = sum(abs2, x)
-power(x::AbstractVector)::Real = sum(abs2, x) / length(x)
-rms(x::AbstractVector)::Real = sqrt(sum(abs2, x) / length(x))
+power(x::AbstractVector)::Real = energy(x) / length(x)
+rms(x::AbstractVector)::Real = sqrt(power(x))
 
 function running_mean(x::AbstractVector, M::Integer)::Vector
     result::AbstractVector = zeros(length(x))
@@ -150,7 +173,7 @@ end
 
 # Kwantyzacja
 quantize(L::AbstractVector)::Function = x -> L[argmin(abs.(-L .+ x))]
-SQNR(N::Integer)::Real = 6.02N
+SQNR(N::Integer)::Real = 6.02N # 6.02N + 1.76 [dB] also correct
 SNR(Psignal, Pnoise)::Real = 10 * log10(Psignal / Pnoise)
 
 # Obliczanie DFT
