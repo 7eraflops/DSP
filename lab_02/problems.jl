@@ -1,10 +1,9 @@
-##
+## Tu są tylko zadania, które nie są częścią CPS.jl
 begin
     using Plots
     using Statistics
     using LinearAlgebra
     using Random
-    using Waveforms
 end
 
 ## problem 2.1
@@ -67,54 +66,3 @@ function complex_white_noise(n, power)
 end
 signal = complex_white_noise(1000, 3)
 var(signal)
-
-## problem 2.5
-function cw_rectangular(T, t)
-    impulse_value = 1 / T
-
-
-end
-
-## problem 2.9
-function ramp_wave(x)
-    output = 2 * rem(x, 1, RoundNearest)
-    return output
-end
-
-x = 0:0.001:2
-plot(x, ramp_wave.(x))
-
-## problem 2.10
-function sawtooth_wave(x)
-    output = -2 * rem(x, 1, RoundNearest)
-    return output
-end
-
-x = 0:0.001:2
-plot(x, sawtooth_wave.(x))
-
-## problem 2.11
-function triangle_wave(x)
-    #FIXME: conflicting requirements
-end
-
-x = 0:0.001:2
-plot(x, triangle_wave.(x))
-
-## problem 2.12
-function square_wave(x)
-    ifelse(rem(x, 1) < 0.5, 1, -1)
-end
-
-trianglewave1(x)
-
-x = 0:0.001:2
-plot(x, square_wave.(x))
-
-## problem 2.13
-function pulse_wave(x, ρ)
-    ifelse(rem(x, 1) < ρ, 1, 0)
-end
-
-x = 0:0.001:2
-plot(x, pulse_wave.(x, 0.2))
