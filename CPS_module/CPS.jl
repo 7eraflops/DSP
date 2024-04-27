@@ -1,4 +1,4 @@
-# module CPS
+module CPS
 
 using LinearAlgebra
 using QuadGK
@@ -120,7 +120,7 @@ blackman(N::Integer)::AbstractVector{<:Real} = [0.42 - 0.5cos(2π * n / (N - 1))
 
 # Parametry sygnałów
 mean(x::AbstractVector)::Number = sum(x) / length(x)
-peak2peak(x::AbstractVector)::Real = abs(max(x) - min(x))
+peak2peak(x::AbstractVector)::Real = abs(maximum(x) - minimum(x))
 energy(x::AbstractVector)::Real = sum(abs2, x)
 power(x::AbstractVector)::Real = energy(x) / length(x)
 rms(x::AbstractVector)::Real = sqrt(power(x))
@@ -173,7 +173,7 @@ end
 
 # Kwantyzacja
 quantize(L::AbstractVector)::Function = x -> L[argmin(abs.(-L .+ x))]
-SQNR(N::Integer)::Real = 6.02N # 6.02N + 1.76 [dB] also correct
+SQNR(N::Integer)::Real = 1.76 + 6.02 * N # 6.02N [dB] also correct
 SNR(Psignal, Pnoise)::Real = 10 * log10(Psignal / Pnoise)
 
 # Obliczanie DFT
@@ -229,4 +229,5 @@ end
 
 function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integer)::AbstractVector{<:Real}
     missing
+end
 end
