@@ -2,6 +2,7 @@ module CPS
 
 using LinearAlgebra
 using QuadGK
+using OffsetArrays
 
 author = Dict{Symbol,String}(
     :index => "417096",
@@ -177,24 +178,64 @@ SQNR(N::Integer)::Real = 1.76 + 6.02 * N # 6.02N [dB] also correct
 SNR(Psignal, Pnoise)::Real = 10 * log10(Psignal / Pnoise)
 
 # Obliczanie DFT
-function dtft(f::Real; signal::AbstractVector, fs::Real)
-    missing
+function dtft(freq::Real; signal::AbstractVector, fs::Real)
+    dtft_val::ComplexF64 = 0.0
+    for n in eachindex(signal)
+        dtft_val += signal[n] * cispi(-2 * freq * n / fs)
+    end
+    return dtft_val
 end
 
 function dft(x::AbstractVector)::Vector
-    missing
+    N = length(x)
+    ζ = OffsetArray(
+        [cispi(-2 * n / N) for n in 0:(N-1)],
+        0:(N-1)
+    )
+    [
+        sum((
+            x[n+1] * ζ[(n*f)%N]
+            for n in 0:(N-1)
+        ))
+        for f in 0:(N-1)
+    ]
 end
 
 function idft(X::AbstractVector)::Vector
-    missing
+    N = length(X)
+    ζ = OffsetArray(
+        [cispi(2 * n / N) for n in 0:(N-1)],
+        0:(N-1)
+    )
+    [
+        (1 / N) * sum((
+            X[n+1] * ζ[(n*f)%N]
+            for n in 0:(N-1)
+        ))
+        for f in 0:(N-1)
+    ]
 end
 
 function rdft(x::AbstractVector)::Vector
-    missing
+    N = length(x)
+    ζ = OffsetArray(
+        [cispi(-2 * n / N) for n in 0:(N-1)],
+        0:(N-1)
+    )
+    [
+        sum((
+            x[n+1] * ζ[(n*f)%N]
+            for n in 0:(N-1)
+        ))
+        for f in 0:(N÷2)
+    ]
 end
 
+##TODO: ask Mr. Woźniak about the N in the argument list
 function irdft(X::AbstractVector, N::Integer)::Vector
-    missing
+    S = length(X)
+    X₁ = [n <= S ? X[n] : -X[2S-n] for n in 1:N]
+    idft(X₁)
 end
 
 function fft_radix2_dit_r(x::AbstractVector)::Vector
@@ -228,6 +269,26 @@ function stft(x::AbstractVector, w::AbstractVector, L::Integer)::Matrix
 end
 
 function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integer)::AbstractVector{<:Real}
+    missing
+end
+
+function conv(f::Vector, g::Vector)::Vector
+    missing
+end
+
+function fast_conv(f::Vector, g::Vector)::Vector
+    missing
+end
+
+function overlap_add(x::Vector, h::Vector, L::Integer)::Vector
+    missing
+end
+
+function overlap_save(x::Vector, h::Vector, L::Integer)::Vector
+    missing
+end
+
+function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
     missing
 end
 end
