@@ -52,10 +52,10 @@ plot(t, CPS.impulse_repeater_bl(cos, 0, π / 2, 20).(t))
 ## problem 2.21
 N = length(t)
 fs = 1 / 0.001
-freqs = [n * fs / N for n in 1:N]
+freqs = [n * fs / N for n in 0:N-1]
 signal = CPS.rand_signal_bl(100, 300).(t)
 plot(t, signal)
-plot(freqs, abs2.(fft(signal)))
+plot(freqs, (2 / N) .* abs.(fft(signal)))
 
 ## discrete signals
 n = -100:1:100
@@ -92,11 +92,11 @@ CPS.energy(signal)
 CPS.power(signal)
 ## problem 3.5
 CPS.rms(signal)
-##problem 3.6
+## problem 3.6
 plot(CPS.running_mean(signal, 10))
-##problem 3.7
+## problem 3.7
 plot(CPS.running_energy(signal, 10))
-##problem 3.6
+## problem 3.6
 plot(CPS.running_power(signal, 10))
 
 ## sampling
@@ -110,7 +110,7 @@ plot(t, [f.(t), interpolated_signal.(t)]) # y1 - original signal y2 - interpolat
 plot(t, f.(t) - interpolated_signal.(t)) # error
 
 ## quantization
-f = t -> 5cos(t) - 2sin(3t) + cos(10t)
+f = t -> 5cos(2π * t) - 2sin(2π * 3t) + cos(2π * 10t)
 t = -2:0.001:2
 signal = f.(t)
 N = 16 # N-bit ADC
@@ -126,3 +126,34 @@ CPS.SQNR(N)
 
 ## problem 5.3
 CPS.SNR(CPS.power(signal), CPS.power(noise))
+
+## discrete fourier transform
+f = t -> sin(2π * t) + (3 * im) * cos(2π * 5t)
+fs = 100
+t = -2:(1/fs):2
+signal = f.(t)
+end_freq = 20
+freqs = -end_freq:1:end_freq
+
+## problem 6.3
+result = CPS.dtft.(freqs; signal, fs)
+plot(t, real.(signal), imag.(signal))
+plot(freqs, real.(result), imag.(result))
+
+## problem 6.4-6.5
+signal_dft = CPS.dft(signal)
+signal_idft = CPS.idft(signal_dft)
+
+plot(t, real.(signal), imag.(signal))
+plot(t, real.(signal_dft), imag.(signal_dft))
+plot(t, real.(signal_idft), imag.(signal_idft))
+
+check = fft(signal)
+result ≈ check
+
+## problem 6.6-6.7
+signal = [1, 0, 1, 0, 1, 1, 1, 1]
+result = CPS.dft(signal)
+check = CPS.idft(result)
+result_r = CPS.rdft(signal)
+check_r = CPS.irdft(result_r, 8)
