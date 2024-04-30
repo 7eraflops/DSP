@@ -4,6 +4,7 @@ begin
     using Plots
     using FFTW
     using .CPS
+    using BenchmarkTools
 end
 
 ## continuous signals
@@ -141,19 +142,20 @@ plot(t, real.(signal), imag.(signal))
 plot(freqs, real.(result), imag.(result))
 
 ## problem 6.4-6.5
+signal = [0, 1, 0, im, im, 0, 1, 0]
 signal_dft = CPS.dft(signal)
 signal_idft = CPS.idft(signal_dft)
 
-plot(t, real.(signal), imag.(signal))
-plot(t, real.(signal_dft), imag.(signal_dft))
-plot(t, real.(signal_idft), imag.(signal_idft))
-
-check = fft(signal)
-result ≈ check
-
 ## problem 6.6-6.7
-signal = [1, 0, 1, 0, 1, 1, 1, 1]
-result = CPS.dft(signal)
-check = CPS.idft(result)
-result_r = CPS.rdft(signal)
-check_r = CPS.irdft(result_r, 8)
+signal = [0, 1, 0, 1, 1, 0, 1, 0]
+signal_rdft = CPS.rdft(signal)
+signal_irdft = CPS.irdft(result_r, 8)
+
+## problem 6.9
+signal = [0, 1, 0, 1, 1, 0, 1, 0]
+h1 = CPS.fft_radix2_dit_r(signal)
+h1 ≈ fft(signal)
+
+@benchmark CPS.fft_radix2_dit_r(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10
+@benchmark CPS.fft_algorithm(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10
+@benchmark CPS.fft_algorithm_optimized(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10

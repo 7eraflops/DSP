@@ -99,7 +99,7 @@ function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Funct
     return fourier_series_output
 end
 
-#TODO: naive approach, might change later
+# TODO: naive approach, might change later
 function rand_signal_bl(f1::Real, f2::Real)::Function
     f = f1 .+ rand(1000) .* (f2 - f1)
     ϕ = -π .+ rand(1000) * 2π
@@ -231,15 +231,57 @@ function rdft(x::AbstractVector)::Vector
     ]
 end
 
-##TODO: ask Mr. Woźniak about the N in the argument list
+# TODO: ask Mr. Woźniak about the N in the argument list
 function irdft(X::AbstractVector, N::Integer)::Vector
     S = length(X)
-    X₁ = [n <= S ? X[n] : -X[2S-n] for n in 1:N]
+    X₁ = [n <= S ? X[n] : conj(X[2S-n]) for n in 1:N]
     idft(X₁)
 end
 
+# TODO: still not complete
 function fft_radix2_dit_r(x::AbstractVector)::Vector
-    missing
+    N = length(x)
+    if !ispow2(N)
+        error("Input vector length must be a power of 2")
+    end
+    x = Complex{Float64}.(x)
+    for e = 1:floor(Int, log2(N))
+        L = 2^e
+        M = 2^(e - 1)
+        Wi = 1
+        W = cispi(-2 / L)
+        for m = 1:M
+            for g = m:L:N
+                d = g + M
+                @inbounds T = x[d] * Wi
+                x[d] = x[g] - T
+                x[g] = x[g] + T
+            end
+            Wi *= W
+        end
+    end
+    return x
+end
+
+function fft_algorithm(x::AbstractVector)::Vector
+    N = length(x)
+    x = Complex{Float64}.(x)
+    for e = 1:floor(Int, log2(N))
+        L = 2^e
+        M = 2^(e - 1)
+        Wi = 1
+        W = cispi(-2 / L)
+        for m = 1:M
+            for g = m:L:N
+                d = g + M
+                T = x[d] * Wi
+                x[d] = x[g] - T
+                x[g] = x[g] + T
+            end
+            Wi = Wi * W
+        end
+    end
+    return x
 end
 
 function ifft_radix2_dif_r(X::AbstractVector)::Vector
