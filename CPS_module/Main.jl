@@ -5,6 +5,7 @@ begin
     using FFTW
     using .CPS
     using BenchmarkTools
+    using Profile
 end
 
 ## continuous signals
@@ -134,12 +135,12 @@ fs = 100
 t = -2:(1/fs):2
 signal = f.(t)
 end_freq = 20
-freqs = -end_freq:1:end_freq
+freqs = -end_freq:0.01:end_freq
 
 ## problem 6.3
 result = CPS.dtft.(freqs; signal, fs)
-plot(t, real.(signal), imag.(signal))
-plot(freqs, real.(result), imag.(result))
+plot(t, abs.(signal))
+plot(freqs, abs.(result))
 
 ## problem 6.4-6.5
 signal = [0, 1, 0, im, im, 0, 1, 0]
@@ -148,14 +149,25 @@ signal_idft = CPS.idft(signal_dft)
 
 ## problem 6.6-6.7
 signal = [0, 1, 0, 1, 1, 0, 1, 0]
+N = length(signal)
 signal_rdft = CPS.rdft(signal)
-signal_irdft = CPS.irdft(result_r, 8)
+signal_irdft = CPS.irdft(signal_rdft, N)
 
 ## problem 6.9
 signal = [0, 1, 0, 1, 1, 0, 1, 0]
 h1 = CPS.fft_radix2_dit_r(signal)
 h1 ≈ fft(signal)
 
-@benchmark CPS.fft_radix2_dit_r(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10
-@benchmark CPS.fft_algorithm(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10
-@benchmark CPS.fft_algorithm_optimized(x) setup = (x = rand(2^20) .|> ComplexF64) seconds = 10
+
+fs = 10
+t = -1:(1/fs):0.99
+h = (4 + im) * sin.(2π * t) .+ 1.0
+as_1 = CPS.amplitude_spectrum(h)
+as_2 = CPS.amplitude_spectrum(h .* CPS.hanning(length(h)), CPS.hanning(length(h)))
+scatter(fftfreq(length(h), fs), [as_1, as_2])
+ps_1 = CPS.power_spectrum(h)
+ps_2 = CPS.power_spectrum(h .* CPS.hanning(length(h)), CPS.hanning(length(h)))
+scatter(fftfreq(length(h), fs), [ps_1, ps_2])
+CPS.power(h)
+sum(ps_1)
+sum(ps_2)

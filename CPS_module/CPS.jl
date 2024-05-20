@@ -231,42 +231,34 @@ function rdft(x::AbstractVector)::Vector
     ]
 end
 
-# TODO: ask Mr. Woźniak about the N in the argument list
 function irdft(X::AbstractVector, N::Integer)::Vector
     S = length(X)
-    X₁ = [n <= S ? X[n] : conj(X[2S-n]) for n in 1:N]
-    idft(X₁)
+    X₁ = [n <= S ? X[n] : conj(X[2S-n+(N % 2 == 0 ? 0 : 1)]) for n in 1:N]
+    real.(idft(X₁))
 end
 
 # TODO: still not complete
 function fft_radix2_dit_r(x::AbstractVector)::Vector
-    N = length(x)
+    N::Int = length(x)
     if !ispow2(N)
         error("Input vector length must be a power of 2")
     end
-    x = Complex{Float64}.(x)
-    for e = 1:floor(Int, log2(N))
-        L = 2^e
-        M = 2^(e - 1)
-        Wi = 1
-        W = cispi(-2 / L)
-        for m = 1:M
-            for g = m:L:N
-                d = g + M
-                @inbounds T = x[d] * Wi
-                x[d] = x[g] - T
-                x[g] = x[g] + T
-            end
-            Wi *= W
+    a::Int = 1
+    for b::Int = 1:N-1
+        if (b < a)
+            T = x[a]
+            x[a] = x[b]
+            x[b] = T
         end
+        c = N / 2
+        while (c < a)
+            a -= c
+            c /= 2
+        end
+        a += c
     end
-    return x
-end
-
-function fft_algorithm(x::AbstractVector)::Vector
-    N = length(x)
     x = Complex{Float64}.(x)
-    for e = 1:floor(Int, log2(N))
+    for e::Int = 1:log2(N)
         L = 2^e
         M = 2^(e - 1)
         Wi = 1
@@ -278,7 +270,7 @@ function fft_algorithm(x::AbstractVector)::Vector
                 x[d] = x[g] - T
                 x[g] = x[g] + T
             end
-            Wi = Wi * W
+            Wi *= W
         end
     end
     return x
@@ -296,10 +288,10 @@ function ifft(X::AbstractVector)::Vector
     idft(X) # Może da rade lepiej?
 end
 
-fftfreq(N::Integer, fs::Real)::Vector = missing
-rfftfreq(N::Integer, fs::Real)::Vector = missing
-amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = missing
-power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = missing
+fftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N-1)]
+rfftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N÷2)]
+amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs.(fft(x)) / (length(x) * mean(w))
+power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2 * rms(w)
 psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = missing
 
 function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector
@@ -333,4 +325,42 @@ end
 function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
     missing
 end
+
+function filtfilt(b::Vector, a::Vector, x::Vector)::Vector
+    missing
+end
+
+function lti_amp(f::Real, b::Vector, a::Vector)::Real
+    missing
+end
+
+function lti_phase(f::Real, b::Vector, a::Vector)::Real
+    missing
+end
+
+
+function firwin_lp_I(order, F0)
+    missing
+end
+
+function firwin_hp_I(order, F0)
+    missing
+end
+
+function firwin_bp_I(order, F1, F2)
+    missing
+end
+
+function firwin_bs_I(order, F1, F2)
+    missing
+end
+
+function firwin_lp_II(N, F0)
+    missing
+end
+
+function firwin_bp_II(N, F1, F2)
+    missing
+end
+
 end
