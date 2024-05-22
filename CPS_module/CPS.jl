@@ -157,11 +157,7 @@ function running_power(x::AbstractVector, M::Integer)::Vector
 end
 
 # Próbkowanie
-function interpolate(
-    m::AbstractVector,
-    s::AbstractVector,
-    kernel::Function=sinc
-)::Function
+function interpolate(m::AbstractVector, s::AbstractVector, kernel::Function=sinc)::Function
     return x -> begin
         sum = 0.0
         Δt = m[2] - m[1]
@@ -237,43 +233,58 @@ function irdft(X::AbstractVector, N::Integer)::Vector
     real.(idft(X₁))
 end
 
-# TODO: still not complete
-function fft_radix2_dit_r(x::AbstractVector)::Vector
-    N::Int = length(x)
-    if !ispow2(N)
-        error("Input vector length must be a power of 2")
+function fft_radix2_dit_r!(x::Vector{Complex{T}}) where {T}
+    N = length(x)
+    if N == 0 || (N & (N - 1)) != 0
+        throw(ArgumentError("Length of input must be a power of 2"))
     end
-    a::Int = 1
-    for b::Int = 1:N-1
-        if (b < a)
-            T = x[a]
-            x[a] = x[b]
-            x[b] = T
+
+    bits = Int(log2(N))
+    function bitreverse(n, bits)
+        reversed = 0
+        for i in 1:bits
+            reversed <<= 1
+            reversed |= (n & 1)
+            n >>= 1
         end
-        c = N / 2
-        while (c < a)
-            a -= c
-            c /= 2
-        end
-        a += c
+        return reversed
     end
-    x = Complex{Float64}.(x)
-    for e::Int = 1:log2(N)
-        L = 2^e
-        M = 2^(e - 1)
-        Wi = 1
-        W = cispi(-2 / L)
-        for m = 1:M
-            for g = m:L:N
-                d = g + M
-                T = x[d] * Wi
-                x[d] = x[g] - T
-                x[g] = x[g] + T
+
+    for i in 1:N
+        j = bitreverse(i - 1, bits) + 1
+        if i < j
+            x[i], x[j] = x[j], x[i]
+        end
+    end
+
+    m = 2
+    while m <= N
+        half_m = div(m, 2)
+        w_m = cispi(-2 / m)
+        for k in 1:m:N
+            w = one(Complex{T})
+            for j in 0:half_m-1
+                t = w * x[k+j+half_m]
+                u = x[k+j]
+                x[k+j] = u + t
+                x[k+j+half_m] = u - t
+                w *= w_m
             end
-            Wi *= W
         end
+        m *= 2
     end
+
     return x
+end
+
+function fft_radix2_dit_r(x::Vector{Complex{T}}) where {T}
+    y = copy(x)
+    return fft_radix2_dit_r!(y)
+end
+
+function fft_radix2_dit_r(x::Vector{T}) where {T}
+    x_complex = Complex{promote_type(T, Float64)}[complex(xi, 0.0) for xi in x]
+    return fft_radix2_dit_r!(x_complex)
 end
 
 function ifft_radix2_dif_r(X::AbstractVector)::Vector
@@ -290,9 +301,9 @@ end
 
 fftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N-1)]
 rfftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N÷2)]
-amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs.(fft(x)) / (length(x) * mean(w))
-power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2 * rms(w)
-psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = missing
+amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs.(fft(x .* w)) / (length(x) * mean(w))
+power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs2.(fft(x .* w)) / (length(x) * sum(abs2, w))
+psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (length(x) * sum(abs2, w) * fs)
 
 function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector
     missing
@@ -306,20 +317,70 @@ function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integ
     missing
 end
 
-function conv(f::Vector, g::Vector)::Vector
-    missing
+function conv(f::AbstractVector, g::AbstractVector)::Vector
+    n = length(f)
+    m = length(g)
+    y = zeros(eltype(f), n + m - 1)
+    for i in 1:n
+        for j in 1:m
+            y[i+j-1] += f[i] * g[j]
+        end
+    end
+    return y
 end
 
 function fast_conv(f::Vector, g::Vector)::Vector
-    missing
+    N = length(f) + length(g) - 1
+
+    f_padded = vcat(f, zeros(N - length(f)))
+    g_padded = vcat(g, zeros(N - length(g)))
+
+    F = fft(f_padded)
+    G = fft(g_padded)
+    Y = F .* G
+    y = real(ifft(Y))
+
+    return y
 end
 
 function overlap_add(x::Vector, h::Vector, L::Integer)::Vector
-    missing
+    M = length(h)
+    N = L + M - 1
+
+    padded_h = vcat(h, zeros(N - M))
+    H = fft(padded_h)
+
+    y = zeros(eltype(x), length(x) + M - 1)
+
+    for k in 1:L:length(x)
+        xk = x[k:min(k + L - 1, end)]
+        padded_xk = vcat(xk, zeros(N - length(xk)))
+        Xk = fft(padded_xk)
+        Yk = ifft(H .* Xk)
+        y[k:k+N-1] += real(Yk)
+    end
+
+    return y[1:length(x)+M-1]
 end
 
 function overlap_save(x::Vector, h::Vector, L::Integer)::Vector
-    missing
+    M = length(h)
+    N = L + M - 1
+
+    padded_h = vcat(h, zeros(N - M))
+    H = fft(padded_h)
+
+    y = []
+    padded_x = vcat(zeros(M - 1), x, zeros(N - 1))
+
+    for k in 1:L:(length(padded_x)-N+1)
+        xk = padded_x[k:k+N-1]
+        Xk = fft(xk)
+        Yk = ifft(H .* Xk)
+        y = vcat(y, real(Yk[M:end]))
+    end
+
+    return y[1:(length(x)+M-1)]
 end
 
 function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
@@ -337,7 +398,6 @@ end
 function lti_phase(f::Real, b::Vector, a::Vector)::Real
     missing
 end
-
 
 function firwin_lp_I(order, F0)
     missing
