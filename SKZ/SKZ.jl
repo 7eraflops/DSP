@@ -70,3 +70,49 @@ function rozwiazanie(;
     87875.41206419999
 end
 energy = rozwiazanie()
+
+#= Zadanie 4
+*# correct solution
+Oblicz moc dyskretnego sygnału x ∈ R^259. Dyskretny sygnał x powstał w wyniku 
+pobrania N = 259 próbek z ciągłego sygnału y(t) = 3.7 * g(3.1 * t - 5.0) z szybkością 
+fp = 124.42 próbke na sekundę. Pierwsza próbka x1 = y(t1) została pobrana w chwili 
+t1 = -4.16. Funkcja g(t) zwraca wartości sygnału fali piłokształtnej o opadającym 
+zboczu i następujących parametrach: amplituda 1, okres 1 sekunda, składowa stała 0,
+g(0) = 0, oraz dg/dt |t=0 = -1.
+=#
+function rozwiazanie(;
+    fp::Float64=124.42,
+    t1::Float64=-4.16,
+    N::Int=259,
+)
+    g = t -> -2 * rem(t, 1, RoundNearest)
+    t = range(; start=t1, step=(1 / fp), length=N)
+    y = 3.7 * g.(3.1 .* t .- 5.0)
+    power = sum(abs2, y) / length(y)
+    return power
+    4.681103148861615
+end
+power = rozwiazanie()
+
+#= Zadanie 5
+*# correct solution
+Oblicz moc dyskretnego sygnału x ∈ R^377. Dyskretny sygnał x powstał w wyniku 
+pobrania N = 377 próbek z ciągłego sygnału y(t) = 3.0 * g(0.2 * t - 4.2) z szybkością 
+fp = 325.1 próbke na sekundę. Pierwsza próbka x1 = y(t1) została pobrana w chwili 
+t1 = 4.39. Funkcja g(t) zwraca wartości sygnału fali piłokształtnej o opadającym 
+zboczu i następujących parametrach: amplituda 1, okres 1 sekunda, składowa stała 0,
+g(0) = 0, oraz dg/dt |t=0 = -1.
+=#
+function rozwiazanie(;
+    fp::Float64=325.1,
+    t1::Float64=4.39,
+    N::Int=377,
+)
+    g = t -> -2 * rem(t, 1, RoundNearest)
+    t = range(; start=t1, step=(1 / fp), length=N)
+    y = 3.0 * g.(0.2 .* t .- 4.2)
+    rms = sqrt(sum(abs2, y) / length(y))
+    return rms
+    1.3016002840023688
+end
+rms = rozwiazanie()
