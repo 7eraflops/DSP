@@ -20,6 +20,7 @@ function rozwiazanie(;
     y = 2.6 * g.(2.9 .* t .- 4.8)
     rms = sqrt(sum(abs2, y) / length(y))
     return rms
+    1.5816485480484588
 end
 rms = rozwiazanie()
 
