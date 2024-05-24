@@ -14,5 +14,7 @@ arg2::Type,
 arg3::Type
 )
     #kod
+    return wynik
 end
+wynik = rozwiazanie()
 ```
