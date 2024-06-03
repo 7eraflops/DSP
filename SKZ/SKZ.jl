@@ -3,6 +3,90 @@ begin
     using LinearAlgebra
 end
 
+# funkcje używne w zadaniach
+begin
+    # parametry sygnałów
+    mean(x::AbstractVector)::Number = sum(x) / length(x)
+    energy(x::AbstractVector)::Real = sum(abs2, x)
+    power(x::AbstractVector)::Real = energy(x) / length(x)
+    rms(x::AbstractVector)::Real = sqrt(power(x))
+    # sygnały
+    ramp_wave(t::Real)::Real = 2 * rem(t, 1, RoundNearest)
+    sawtooth_wave(t::Real)::Real = -2 * rem(t, 1, RoundNearest)
+    triangular_wave(t::Real)::Real = ifelse(mod(t + 1 / 4, 1.0) < 1 / 2, 4mod(t + 1 / 4, 1.0) - 1, -4mod(t + 1 / 4, 1.0) + 3)
+    square_wave(t::Real)::Real = ifelse(mod(t, 1) < 0.5, 1, -1)
+    # interploacja
+    function interpolate(m::AbstractVector, s::AbstractVector, kernel::Function=sinc)::Function
+        return x -> begin
+            sum = 0.0
+            Δt = m[2] - m[1]
+            for i in eachindex(m)
+                sum += s[i] * kernel((x - m[i]) / Δt)
+            end
+            return sum
+        end
+    end
+    # Kwantyzacja
+    quantize(L::AbstractVector)::Function = x -> L[argmin(abs.(-L .+ x))]
+    # dft i zamiana częstotliwości na index dft
+    function dft(x::AbstractVector)::Vector
+        N = length(x)
+        ζ = [cispi(-2 * n / N) for n in 0:(N-1)]
+        [
+            sum((
+                x[n+1] * ζ[(n*f)%N+1]
+                for n in 0:(N-1)
+            ))
+            for f in 0:(N-1)
+        ]
+    end
+    function freq_to_index(f, N, fp)
+        k = f * N / fp
+        return Int(round(mod(k, N))) + 1
+    end
+    # splot
+    function conv(f::AbstractVector, g::AbstractVector)::Vector
+        n = length(f)
+        m = length(g)
+        y = zeros(eltype(f), n + m - 1)
+        for i in 1:n
+            for j in 1:m
+                y[i+j-1] += f[i] * g[j]
+            end
+        end
+        return y
+    end
+    # system LTI
+    function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
+        N = length(x)
+        M = length(b) - 1
+        K = length(a) - 1
+        y = zeros(Float64, N)
+
+        for n in 1:N
+            for k in 0:M
+                if n - k > 0
+                    y[n] += b[k+1] * x[n-k]
+                end
+            end
+            for k in 1:K
+                if n - k > 0
+                    y[n] -= a[k+1] * y[n-k]
+                end
+            end
+        end
+        return y
+    end
+    # obliczanie piwrwiastków wielomianu przy użyciu companion matrix (https://www.wikiwand.com/en/Companion_matrix)
+    function roots(a::AbstractVector)::Vector
+        H = Matrix(I, length(a) - 2, length(a) - 2)
+        Z = zeros(length(a) - 2)
+        H = vcat(Z', H)
+        H = hcat(H, -1 * reverse(a[2:end]))
+        return eigvals(H)
+    end
+end
+
 #= Zadanie 1: 
 #* correct result
 Oblicz wartość skuteczną dyskretnego sygnału x ∈ R^54. Dyskretny sygnał x powstał w wyniku 
@@ -17,14 +101,13 @@ begin
         t1::Float64=5.39,
         N::Int=54,
     )
-        g = t -> -2 * rem(t, 1, RoundNearest)
+        g = ramp_wave # ramp/sawtooth/triangular/square
         t = range(; start=t1, step=(1 / fp), length=N)
         y = 1.8 * g.(4.8 .* t .- 0.5)
-        rms = sqrt(sum(abs2, y) / length(y))
-        return rms
+        return rms(y) # energy/power/rms
         1.1370311872575378
     end
-    rms = rozwiazanie_1()
+    out_1 = rozwiazanie_1()
 end
 #= Zadanie 2:
 #* correct solution
@@ -41,22 +124,11 @@ begin
         s::Vector{Float64}=[0.2096, 0.078, 0.5424, 0.1371, 0.8907, 0.8571, 0.9054, 0.8251, 0.8257, 0.0806, 0.0627, 0.4738, 0.3664, 0.3949, 0.2519, 0.8641, 0.0585, 0.2472, 0.7465, 0.6552, 0.4091, 0.0134, 0.3141, 0.1118, 0.1763, 0.9125, 0.2146, 0.0039, 0.0613, 0.1577, 0.7172, 0.8305, 0.3476, 0.1374, 0.9451, 0.6567, 0.17, 0.8519, 0.0879, 0.0532, 0.5134, 0.099, 0.9124, 0.6079, 0.8783, 0.8155, 0.4724, 0.2542, 0.1515, 0.4467, 0.6567, 0.8456, 0.8264, 0.6765, 0.1342, 0.5729, 0.193, 0.5653, 0.3538, 0.5603, 0.0119, 0.7747, 0.8549, 0.4851, 0.3145, 0.4572, 0.952, 0.0376, 0.4361],
         t::Vector{Float64}=[2.00445, 2.50107, 2.16732, 2.46547],
     )
-        function interpolate(m::AbstractVector, s::AbstractVector, kernel::Function=sinc)::Function
-            return x -> begin
-                sum = 0.0
-                Δt = m[2] - m[1]
-                for i in eachindex(m)
-                    sum += s[i] * kernel((x - m[i]) / Δt)
-                end
-                return sum
-            end
-        end
         g = interpolate(m, s)
-        solution = sum(g.(t))
-        return solution
+        return sum(g.(t))
         1.861809777968849
     end
-    solution = rozwiazanie_2()
+    out_2 = rozwiazanie_2()
 end
 #= Zadanie 3:
 #* correct solution
@@ -71,16 +143,15 @@ begin
         b::Float64=1.1,
         x::Vector{Float64}=[0.7, 0.67743, 0.65485, 0.63228, 0.60971, 0.58713, 0.56456, 0.54199, 0.51941, 0.49684, 0.47427, 0.45169, 0.42912, 0.40655, 0.38397, 0.3614, 0.33883, 0.31625, 0.29368, 0.27111, 0.24853, 0.22596, 0.20339, 0.18081, 0.15824, 0.13567, 0.11309, 0.09052, 0.06795, 0.04537, 0.0228, 0.00023, -0.02235, -0.04492, -0.06749, -0.09007, -0.11264, -0.13521, -0.15779, -0.18036, -0.20293, -0.22551, -0.24808, -0.27065, -0.29323, -0.3158, -0.33837, -0.36095, -0.38352, -0.40609, -0.42867, -0.45124, -0.47381, -0.49639, -0.51896, -0.54153, -0.56411, -0.58668, -0.60926, -0.63183, -0.6544, -0.67698, -0.69955, -0.72212, -0.7447, -0.76727, -0.78984, -0.81242, -0.83499, -0.85756, -0.88014, 1.09729, 1.07472, 1.05214, 1.02957, 1.007, 0.98442, 0.96185],
     )
-        L = range(; start=a, stop=b, length=2^5)
-        quantize(L::AbstractVector)::Function = x -> L[argmin(abs.(-L .+ x))]
+        N = 5 # N-bitowy kwantyzator
+        L = range(; start=a, stop=b, length=2^N)
         q = quantize(L)
         x_quantized = q.(x)
         quantization_error = x .- x_quantized
-        energy = sum(abs2, quantization_error)
-        return energy
+        return energy(quantization_error) # energy/power/rms
         0.025959334412591073
     end
-    energy = rozwiazanie_3()
+    out_3 = rozwiazanie_3()
 end
 #= Zadanie 4:
 #* correct solution
@@ -92,28 +163,12 @@ begin
         x::Vector{ComplexF64}=ComplexF64[0.72-0.06im, -1.18-0.02im, -0.81+0.53im, 0.51+0.6im, -0.33-1.04im, -0.31-0.44im, 0.24+0.15im, 0.74+0.34im, -1.41-0.11im, 0.14+0.95im, 0.23-0.83im, -1.32+0.49im, 0.16+0.54im, -0.6-0.28im, -0.3-0.52im, 0.18-0.4im, -0.69+0.58im, -0.95-0.84im, -0.13+0.37im, 0.58+2.19im, 0.61+0.27im, -0.9-0.2im, -1.48-0.01im, 0.55+0.2im, 0.28+0.0im, 0.32-0.76im],
         f::Vector{Int}=[105, -189, 273, -105],
     )
-        function dft(x::AbstractVector)::Vector
-            N = length(x)
-            ζ = [cispi(-2 * n / N) for n in 0:(N-1)]
-            [
-                sum((
-                    x[n+1] * ζ[(n*f)%N+1]
-                    for n in 0:(N-1)
-                ))
-                for f in 0:(N-1)
-            ]
-        end
-        function freq_to_index(f, N, fp)
-            k = f * N / fp
-            return Int(round(mod(k, N))) + 1
-        end
         X = dft(x)
         phases = [angle(X[freq_to_index(freq, length(x), fp)]) for freq in f]
-        phase_sum = sum(phases)
-        return phase_sum
+        return sum(phases)
         -1.1645946595139476
     end
-    phase_sum = rozwiazanie_4()
+    out_4 = rozwiazanie_4()
 end
 #= Zadanie 5:
 #* correct solution
@@ -126,61 +181,74 @@ begin
         x::Vector{Float64}=[2.7, -3.51, 3.34, -3.94, 3.77, 4.02, 0.0, 1.62, -2.47, -2.06, 1.13, 0.87, -2.5, -0.96, -1.35, -1.47, -0.5, -3.13, 1.89, -2.1, 1.73, 3.28, 2.66, -0.77, 2.01, 3.66, -1.21, -4.0, 1.6, 3.35, 3.43, 1.72, -1.23, 4.95, -0.57, -3.3, -0.32, -2.68, -3.26, -4.23, -4.65, 2.56, -4.8, 1.99, 1.36, 4.06, -2.78, -1.04, -2.44, 4.84, 2.5, -1.48, 2.86, 1.6, 0.71, -1.9, -3.22, 0.15, -4.23, -0.3, 2.21, 0.32, -4.88, -1.67, 3.85, -4.37, 0.05, 3.44, -2.71],
         h::Vector{Float64}=[-4.81, 4.18, -1.56, -3.35, 3.63, 2.73, 2.5, -1.57, -4.17, -2.95, 2.05, 2.5, -4.25, -1.95, -2.86, -3.12, -4.87, -0.76],
     )
-        n = length(x)
-        m = length(h)
-        y = zeros(eltype(x), n + m - 1)
-        for i in 1:n
-            for j in 1:m
-                y[i+j-1] += x[i] * h[j]
-            end
-        end
-        energy = sum(abs2, y)
-        return energy
+        y = conv(x, h)
+        return energy(y) # energy/power/rms
         87875.41206419999
     end
-    energy = rozwiazanie_5()
-
+    out_5 = rozwiazanie_5()
 end
+#= Zadanie 6:
+#* correct solution
+system LTI, odpowiedź na impuls x, policz energię/moc/rms dla pierwszych L próbek
+=#
+begin
+    function rozwiazanie_6(;
+        b::Vector{Float64}=[0.003170506666592921, 0.015852533332964606, 0.03170506666592921, 0.03170506666592921, 0.015852533332964606, 0.003170506666592921],
+        a::Vector{Float64}=[1.0, -2.905844673274107, 4.319099303556442, -3.7648421381727513, 1.9147028507947308, -0.4616591295733407],
+        x::Vector{Float64}=[-0.45, -0.17, -0.75, 0.0, 0.86, 0.28, -0.23, 0.57, 0.5, 0.62, 0.34, -0.17, -0.86, 0.27, 0.8, 0.0, -0.63, -0.19, -0.72, 1.0, 0.69, 0.62, -0.78, -0.01, 0.77, -0.14, 0.89, 0.55, -0.43, 0.58, -0.91, -0.45, 0.27, -0.08, -0.47, -0.96, -0.53, -0.58, -0.92, 0.0, -0.08, 0.69, 0.54, -0.26, -0.11, -0.5, 0.56, 0.1, 0.57, -0.49],
+        L::Int=98,
+    )
+        N = length(x)
+        x_padded = vcat(x, zeros(Float64, L - N))
+        y = lti_filter(b, a, x_padded)
 
-function rozwiazanie_6(;
-    b::Vector{Float64}=[0.5910613303216834, -6.112781006955527, 29.875443473694183, -91.01885078406374, 192.2281779559463, -296.2040756929196, 341.2822493432759, -296.2040756929196, 192.22817795594628, -91.01885078406374, 29.875443473694183, -6.112781006955528, 0.5910613303216835],
-    a::Vector{Float64}=[1.0, -9.606819706803597, 43.657203099722054, -123.83997365628642, 243.91699531133975, -351.1790246082447, 378.8724249931937, -308.64912149362937, 188.52967696239602, -84.28273922211159, 26.212348155433993, -5.102166378720933, 0.4714208299517704],
-    x::Vector{Float64}=[-0.09, -0.05, -0.19, -0.9, -0.48, 0.78, -0.84, -0.79, -0.17, -0.64, 0.88, -0.83, 0.79, -0.84, -0.82, 0.54, -0.51, 0.0, -0.67, -0.21, -0.36, -0.94, 0.37, -0.86, -0.53, -0.9, -0.62, 0.22, 1.0, 0.62, 0.14, 0.22, -0.04, 0.26, 0.71, 0.94, 0.36, 0.95, 0.8, -0.24, 0.46, -0.03, -0.82, -0.2, -0.96],
-    L::Int=85,
-)
-    -0.04716978912749659
-    missing
+        return energy(y) # energy/power/rms
+        4.975588325718084
+    end
+    out_6 = rozwiazanie_6()
 end
-
 #= Zadanie 8
 #* correct solution
 dyskretny system liniowy, stacjonarny, wyznacz stabilność (1 - tak/0 - na granicy/-1 - nie)
 a - mianownik, b - licznik
 =#
+# wariant a,b
 begin
-    function rozwiazanie_8(;
-        b::Vector{Float64}=[0.25420348460046177, -1.2710174230023088, 2.5420348460046176, -2.5420348460046176, 1.2710174230023088, -0.25420348460046177],
-        a::Vector{Float64}=[1.0, -4.62624610600513, 8.01514803904025, -6.118940600685512, 2.2495829771575107, -0.32498311549368936],
+    function rozwiazanie_8_1(;
+        b::Vector{Float64}=[0.20496999142745434, -1.0248499571372718, 2.0496999142745436, -2.0496999142745436, 1.0248499571372718, -0.20496999142745434],
+        a::Vector{Float64}=[1.0, -2.04328699669025, 2.205686901762555, -1.0925050400038385, 0.2795267139181644, 0.06196592669626961],
     )
-        a = a / a[1]
-        H = Matrix(I, length(a) - 2, length(a) - 2)
-        Z = transpose(zeros(length(a) - 2))
-        H = vcat(Z, H)
-        H = hcat(H, -1 * reverse(a[2:end]))
-        roots = eigvals(H)
-        lengths = abs.(roots)
-        for i in eachindex(lengths)
-            if lengths[i] > 1
-                return -1
-            end
+        p = roots(a) # gdy zamiast a i b w danych jest z i p, pomiń tą linijkę
+        radii = abs.(p)
+        if all(radii .< 1)
+            return 1.0
+        elseif all(radii .<= 1) && any(radii .== 1)
+            return 0.0
+        else
+            return -1.0
         end
-        for i in eachindex(lengths)
-            if lengths[i] == 1
-                return 0
-            end
-        end
-        return 1
-        -1
+        1.0
+        stable
     end
-    stab = rozwiazanie_8()
+    out_8 = rozwiazanie_8_1()
+end
+# wariant z,p,k
+begin
+    function rozwiazanie_8_2(;
+        z::Vector{ComplexF64}=ComplexF64[0.9632631043548601+0.2685594753283481im, 0.9632631043548601-0.2685594753283481im, 0.9632631043548601+0.2685594753283481im, 0.9632631043548601-0.2685594753283481im, 0.9632631043548601+0.2685594753283481im, 0.9632631043548601-0.2685594753283481im, 0.9632631043548601+0.2685594753283481im, 0.9632631043548601-0.2685594753283481im, 0.9632631043548601+0.2685594753283481im, 0.9632631043548601-0.2685594753283481im],
+        p::Vector{ComplexF64}=ComplexF64[0.9374548821453359-0.34810679962028074im, 0.9614739634351532+0.20095615586824897im, 0.9093219192859163+0.33766013615801665im, 0.9614739634351532-0.20095615586824897im, 0.8826481683827513-0.28771647831629865im, 0.9251374712100688+0.20909477610205304im, 0.8826481683827513+0.28771647831629865im, 0.9251374712100688-0.20909477610205304im, 0.892983758401963-0.2380350661011338im, 0.892983758401963+0.2380350661011338im],
+        k::Float64=0.7753165952469473,
+    )
+        radii = abs.(p)
+        if all(radii .< 1)
+            return 1.0
+        elseif all(radii .<= 1) && any(radii .== 1)
+            return 0.0
+        else
+            return -1.0
+        end
+        0.0
+        semistable
+    end
+    out_8 = rozwiazanie_8_2()
 end
