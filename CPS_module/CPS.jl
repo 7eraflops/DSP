@@ -74,6 +74,7 @@ function pulse_wave_bl(t; ρ=0.2, A=1.0, T=1.0, band=20.0)
     return signal
 end
 
+# TODO: QuadGK -> own quadrature integral implementation
 function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Function
     T::Float64 = t2 - t1
     ω₀::Float64 = (2π / T)
@@ -278,8 +279,8 @@ function fft_radix2_dit_r!(x::Vector{Complex{T}}) where {T}
 end
 
 function fft_radix2_dit_r(x::Vector{Complex{T}}) where {T}
-    y = copy(x)
-    return fft_radix2_dit_r!(y)
+    x_copy = copy(x)
+    return fft_radix2_dit_r!(x_copy)
 end
 
 function fft_radix2_dit_r(x::Vector{T}) where {T}
@@ -287,8 +288,58 @@ function fft_radix2_dit_r(x::Vector{T}) where {T}
     return fft_radix2_dit_r!(x_complex)
 end
 
-function ifft_radix2_dif_r(X::AbstractVector)::Vector
-    missing
+function ifft_radix2_dif_r!(X::Vector{Complex{T}}) where {T}
+    N = length(X)
+    if N == 0 || (N & (N - 1)) != 0
+        throw(ArgumentError("Length of input must be a power of 2"))
+    end
+
+    m = N
+    while m >= 2
+        half_m = div(m, 2)
+        w_m = cispi(2 / m)
+        for k in 1:m:N
+            w = one(Complex{T})
+            for j in 0:half_m-1
+                t = X[k+j]
+                u = X[k+j+half_m]
+                X[k+j] = t + u
+                X[k+j+half_m] = (t - u) * w
+                w *= w_m
+            end
+        end
+        m = half_m
+    end
+
+    bits = Int(log2(N))
+    function bitreverse(n, bits)
+        reversed = 0
+        for i in 1:bits
+            reversed <<= 1
+            reversed |= (n & 1)
+            n >>= 1
+        end
+        return reversed
+    end
+
+    for i in 1:N
+        j = bitreverse(i - 1, bits) + 1
+        if i < j
+            X[i], X[j] = X[j], X[i]
+        end
+    end
+
+    scale = inv(T(N))
+    for i in 1:N
+        X[i] *= scale
+    end
+
+    return X
+end
+
+function ifft_radix2_dif_r(X::Vector{Complex{T}}) where {T}
+    X_copy = copy(X)
+    return ifft_radix2_dif_r!(X_copy)
 end
 
 function fft(x::AbstractVector)::Vector
@@ -302,10 +353,10 @@ end
 fftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N-1)]
 rfftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N÷2)]
 amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs.(fft(x .* w)) / (length(x) * mean(w))
-power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = abs2.(fft(x .* w)) / (length(x) * sum(abs2, w))
-psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (length(x) * sum(abs2, w) * fs)
+power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2
+psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (sum(abs2, w) * fs)
 
-function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector
+function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), L::Integer = 0, fs::Real = 1.0)::Vector
     missing
 end
 
@@ -343,6 +394,7 @@ function fast_conv(f::Vector, g::Vector)::Vector
     return y
 end
 
+# FIXME: fix reading array out of bounds
 function overlap_add(x::Vector, h::Vector, L::Integer)::Vector
     M = length(h)
     N = L + M - 1
@@ -399,27 +451,31 @@ function lti_phase(f::Real, b::Vector, a::Vector)::Real
     missing
 end
 
-function firwin_lp_I(order, F0)
+function firwin_lp_I(order::Integer, F0::Float64)::Vector
     missing
 end
 
-function firwin_hp_I(order, F0)
+function firwin_hp_I(order::Integer, F0::Float64)::Vector
     missing
 end
 
-function firwin_bp_I(order, F1, F2)
+function firwin_bp_I(order::Integer, F1::Float64, F2::Float64)::Vector
     missing
 end
 
-function firwin_bs_I(order, F1, F2)
+function firwin_bs_I(order::Integer, F1::Float64, F2::Float64)::Vector
     missing
 end
 
-function firwin_lp_II(N, F0)
+function firwin_lp_II(N::Integer, F0::Float64)::Vector
     missing
 end
 
-function firwin_bp_II(N, F1, F2)
+function firwin_bp_II(N::Integer, F1::Float64, F2::Float64)::Vector
+    missing
+end
+
+function resample(x::Vector, M::Int, N::Int)
     missing
 end
 

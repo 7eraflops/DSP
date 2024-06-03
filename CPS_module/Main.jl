@@ -155,26 +155,31 @@ signal_irdft = CPS.irdft(signal_rdft, N)
 
 ## problem 6.9
 signal = [1, 2, 3, 4, 5, 6, 7, 8]
-h1 = CPS.fft_radix2_dit_r(signal)
-h1 ≈ fft(signal)
+signal_fft = CPS.fft_radix2_dit_r(signal)
+signal_fft ≈ fft(signal)
+signal_recovered = CPS.ifft_radix2_dif_r(signal_fft)
+signal_recovered ≈ ifft(signal_fft)
 
-x = rand(ComplexF64, 2^20)
+@benchmark CPS.fft_radix2_dit_r!(x) setup = (x = rand(2^20) .|> complex)
+@benchmark fft!(x) setup = (x = rand(2^20) .|> complex)
 
-@benchmark CPS.dft($x)
-@benchmark CPS.fft_radix2_dit_r($x)
-@benchmark fft($x)
 
-fs = 1000
+my_fft_benchmark = @benchmark CPS.fft_radix2_dit_r(x) setup = (x = rand(2^20) .|> complex)
+
+
+@benchmark fft(x) setup = (x = rand(2^20) .|> complex)
+
+fs = 100
 t = -1:(1/fs):1
-h = 4 * sin.(2π * t) .+ 1.0
+h = 4 * sin.(2π * 20t) .+ 1.0 + 0.1 .* randn(length(t))
 
 as_1 = CPS.amplitude_spectrum(h)
 as_2 = CPS.amplitude_spectrum(h, CPS.hanning(length(h)))
-plot(fftfreq(length(h), fs), [as_1, as_2])
+scatter(fftfreq(length(h), fs), [as_1, as_2])
 
 ps_1 = CPS.power_spectrum(h)
 ps_2 = CPS.power_spectrum(h, CPS.hanning(length(h)))
-plot(fftfreq(length(h), fs), [ps_1, ps_2])
+scatter(fftfreq(length(h), fs), [log10.(ps_1), log10.(ps_2)])
 
 CPS.power(h)
 sum(ps_1)
@@ -182,9 +187,13 @@ sum(ps_2)
 
 psd_1 = CPS.psd(h, CPS.rect(length(h)), fs)
 psd_2 = CPS.psd(h, CPS.hanning(length(h)), fs)
-plot(fftfreq(length(h), fs), [psd_1, psd_2])
+scatter(fftfreq(length(h), fs), [log10.(psd_1), log10.(psd_2)])
 
-t = -π:0.01*π:π
+sum(psd_1) * fs / length(h)
+
+sum(psd_2) * fs / length(h)
+
+t = -2π:0.01*π:2.1π
 f = sin.(t)
 g = cos.(t)
 plot([f, g])
@@ -198,5 +207,5 @@ plot([0:length(result_2)-1], result_2)
 result_3 = CPS.overlap_add(f, g, 50)
 plot([0:length(result_3)-1], result_3)
 
-result_4 = CPS.overlap_save(f, g, 50)
+result_4 = CPS.overlap_save(f, g, 13)
 plot([0:length(result_4)-1], result_4)
