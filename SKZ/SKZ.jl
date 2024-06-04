@@ -56,7 +56,7 @@ begin
         end
         return y
     end
-    # system LTI
+    # odpowiedź systemu LTI
     function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
         N = length(x)
         M = length(b) - 1
@@ -77,6 +77,23 @@ begin
         end
         return y
     end
+    # wzmocnienie/przesunięcie fazowye systemu LTI
+    function lti_amp(f::Real, b::Vector{Float64}, a::Vector{Float64})::Real
+        M = length(b)
+        K = length(a)
+        num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
+        denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+        H_f = num / denom
+        return abs(H_f)
+    end
+    function lti_phase(f::Real, b::Vector{Float64}, a::Vector{Float64})::Real
+        M = length(b)
+        K = length(a)
+        num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
+        denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+        H_f = num / denom
+        return angle(H_f)
+    end
     # obliczanie piwrwiastków wielomianu przy użyciu companion matrix (https://www.wikiwand.com/en/Companion_matrix)
     function roots(a::AbstractVector)::Vector
         H = Matrix(I, length(a) - 2, length(a) - 2)
@@ -85,6 +102,17 @@ begin
         H = hcat(H, -1 * reverse(a[2:end]))
         return eigvals(H)
     end
+    # filtry
+    kronecker(n::Integer)::Real = ifelse(n == 0, 1, 0)
+    firwin_lp_I(order::Integer, F0::Float64)::Vector = [2F0 * sinc(2F0 * n) for n in -order/2:order/2]
+    firwin_hp_I(order::Integer, F0::Float64)::Vector = [kronecker(Int(n)) - 2F0 * sinc(2F0 * n) for n in -order/2:order/2]
+    firwin_bp_I(order::Integer, F1::Float64, F2::Float64)::Vector = [2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n) for n in -order/2:order/2]
+    firwin_bs_I(order::Integer, F1::Float64, F2::Float64)::Vector = [kronecker(Int(n)) - (2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n)) for n in -order/2:order/2]
+    # okna do filtrów
+    triang(M::Integer)::AbstractVector{<:Real} = [1 - abs(n) / (M + 1) for n = -M:M]
+    hanning(M::Integer)::AbstractVector{<:Real} = [0.5(1 + cos(2π * n / (2M + 1))) for n = -M:M]
+    hamming(M::Integer)::AbstractVector{<:Real} = [0.54 + 0.46cos(2π * n / (2M + 1)) for n = -M:M]
+    blackman(M::Integer)::AbstractVector{<:Real} = [0.42 + 0.5cos(2π * n / (2M + 1)) + 0.08cos(4π * n / (2M + 1)) for n = -M:M]
 end
 
 #= Zadanie 1: 
@@ -164,7 +192,7 @@ begin
         f::Vector{Int}=[105, -189, 273, -105],
     )
         X = dft(x)
-        phases = [angle(X[freq_to_index(freq, length(x), fp)]) for freq in f]
+        phases = [angle(X[freq_to_index(freq, length(x), fp)]) for freq in f] # angle -> abs dla wariantu z sumą amplitud
         return sum(phases)
         -1.1645946595139476
     end
@@ -207,7 +235,22 @@ begin
     end
     out_6 = rozwiazanie_6()
 end
-#= Zadanie 8
+#= Zadanie 7:
+#?
+wzmocnienie/przesunięcie fazowe systemu LTI
+=#
+begin
+    function rozwiazanie_7(;
+        zz::Vector{ComplexF64}=ComplexF64[0.971540512469121+0.23687345277856264im, 0.971540512469121-0.23687345277856264im, 0.9890329941129085+0.14769474112525408im, 0.9890329941129085-0.14769474112525408im, 1.0+0.0im],
+        pp::Vector{ComplexF64}=ComplexF64[0.795989570283467+0.3885971651907094im, 0.795989570283467-0.3885971651907094im, 0.6886971762947508+0.20584641171497528im, 0.6886971762947508-0.20584641171497528im, 0.6577848537749306+0.0im],
+        k::Float64=0.5163896235619335,
+        F::Vector{Float64}=[0.14, 0.16, 0.28, 0.42],
+    )
+        0.9998910496783241
+        missing
+    end
+end
+#= Zadanie 8:
 #* correct solution
 dyskretny system liniowy, stacjonarny, wyznacz stabilność (1 - tak/0 - na granicy/-1 - nie)
 a - mianownik, b - licznik
@@ -252,3 +295,24 @@ begin
     end
     out_8 = rozwiazanie_8_2()
 end
+#= Zadanie 9:
+#* correct solution
+odpowiedzi impulsowe filtrów
+=#
+begin
+    function rozwiazanie_9(;
+        order::Int=74,
+        fp::Float64=118.0,
+        f1::Float64=10.03,
+        f2::Float64=44.25,
+        z::Vector{Int}=[40, 22, 74],
+    )
+        h = firwin_bs_I(order, f1 / fp, f2 / fp) # lp/hp/bp/bs
+        h = h .* hamming(Int(order / 2)) # triang/hamming/hanning/blackman
+        h_z = [h[i] for i in z]
+        return sum(h_z)
+        0.30685976285261213
+    end
+    out_9 = rozwiazanie_9()
+end
+
