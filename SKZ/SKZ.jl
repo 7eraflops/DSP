@@ -193,10 +193,26 @@ end
 
 #= Zadanie 4:
 #* correct solution
-DFT, x ∈ C^26, f_p = 546, suma faz dla f
+DFT, A lub ϕ
 =#
+# wariant A
 begin
-    function rozwiazanie_4(;
+    function rozwiazanie_4_1(;
+        fp::Int=1620,
+        x::Vector{ComplexF64}=ComplexF64[0.36-0.96im, -0.12-0.24im, -0.71-0.15im, -0.41+0.04im, 0.41-0.01im, -0.42+0.46im, -1.07+0.16im, -0.2-0.5im, 0.91+1.18im, -0.04-0.11im, -0.95-0.29im, 0.06-0.89im, -0.56+0.46im, 0.68+0.04im, -0.67-1.77im, 0.33-0.24im, 1.08+0.44im, -1.14+0.16im, 0.17-0.18im, -0.15-0.3im, 0.85+0.3im, 1.04+1.48im, -0.37-0.03im, 0.3-0.79im, 0.21-0.37im, -0.29-1.15im, -0.44-0.6im, 0.67+0.53im, 1.17+0.93im, -0.09+0.82im, -0.7+0.27im, -1.03+0.99im, 1.1+0.58im, -0.36-0.49im, -1.18+0.14im, -0.03-0.33im, 1.1-0.51im, -0.23+0.36im, -0.49+0.01im, 0.32+0.77im, 0.22+0.58im, 0.25-0.72im, -0.3+0.04im, 0.85+1.03im, 0.43+0.92im],
+        f::Vector{Int}=[-36, 252, 360, 396],
+    )
+        X = dft(x)
+        A = [abs(X[freq_to_index(freq, length(x), fp)]) / length(X) for freq in f]
+        return sum(A)
+        0.5240689812893122
+    end
+    out_4 = rozwiazanie_4_1()
+end
+
+# wariant ϕ 
+begin
+    function rozwiazanie_4_2(;
         fp::Int=546,
         x::Vector{ComplexF64}=ComplexF64[0.72-0.06im, -1.18-0.02im, -0.81+0.53im, 0.51+0.6im, -0.33-1.04im, -0.31-0.44im, 0.24+0.15im, 0.74+0.34im, -1.41-0.11im, 0.14+0.95im, 0.23-0.83im, -1.32+0.49im, 0.16+0.54im, -0.6-0.28im, -0.3-0.52im, 0.18-0.4im, -0.69+0.58im, -0.95-0.84im, -0.13+0.37im, 0.58+2.19im, 0.61+0.27im, -0.9-0.2im, -1.48-0.01im, 0.55+0.2im, 0.28+0.0im, 0.32-0.76im],
         f::Vector{Int}=[105, -189, 273, -105],
@@ -206,9 +222,8 @@ begin
         return sum(phases)
         -1.1645946595139476
     end
-    out_4 = rozwiazanie_4()
+    out_4 = rozwiazanie_4_2()
 end
-
 #= Zadanie 5:
 #* correct solution
 Dyskretny sygnał x ∈ R^69 został przetworzony przez dyskretny nierekurencyjny układ liniowy 
