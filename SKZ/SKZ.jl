@@ -1,5 +1,4 @@
 begin
-    using Plots
     using LinearAlgebra
 end
 
@@ -78,19 +77,19 @@ begin
         return y
     end
     # wzmocnienie/przesunięcie fazowye systemu LTI
-    function lti_amp(f::Real, b::Vector{Float64}, a::Vector{Float64})::Real
+    function lti_amp(f::Real, b::Vector, a::Vector)::Real
         M = length(b)
         K = length(a)
         num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
-        denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+        denom = sum(a[k+1] * cispi(-2 * f * k) for k in 0:K-1)
         H_f = num / denom
         return abs(H_f)
     end
-    function lti_phase(f::Real, b::Vector{Float64}, a::Vector{Float64})::Real
+    function lti_phase(f::Real, b::Vector, a::Vector)::Real
         M = length(b)
         K = length(a)
         num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
-        denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+        denom = sum(a[k+1] * cispi(-2 * f * k) for k in 0:K-1)
         H_f = num / denom
         return angle(H_f)
     end
@@ -101,6 +100,14 @@ begin
         H = vcat(Z', H)
         H = hcat(H, -1 * reverse(a[2:end]))
         return eigvals(H)
+    end
+
+    function poly_from_roots(r::AbstractVector)
+        p = [1.0 + 0im]
+        for i in eachindex(r)
+            p = conv(p, [1, -r[i]])
+        end
+        return p
     end
     # filtry
     kronecker(n::Integer)::Real = ifelse(n == 0, 1, 0)
@@ -116,7 +123,7 @@ begin
 end
 
 #= Zadanie 1: 
-#* correct result
+#* correct solution
 Oblicz wartość skuteczną dyskretnego sygnału x ∈ R^54. Dyskretny sygnał x powstał w wyniku 
 pobrania N = 54 próbek z ciągłego sygnału y(t) = 1.8 * g(4.8 * t - 0.5) z szybkością fp = 385.71 
 próbke na sekundę. Pierwsza próbka x1 = y(t1) została pobrana w chwili t1 = 5.39. Funkcja g(t) 
@@ -137,6 +144,7 @@ begin
     end
     out_1 = rozwiazanie_1()
 end
+
 #= Zadanie 2:
 #* correct solution
 Z ciągłego sygnału f(t) ∈ R o paśmie ograniczonym od dołu i od góry przez częstotliwość |B| < 1/2Δm,
@@ -158,6 +166,7 @@ begin
     end
     out_2 = rozwiazanie_2()
 end
+
 #= Zadanie 3:
 #* correct solution
 Dany jest idealny równomierny 5-bitowy kwantyzator q(x), którego najmniejszy poziom kwantyzacji ma
@@ -181,6 +190,7 @@ begin
     end
     out_3 = rozwiazanie_3()
 end
+
 #= Zadanie 4:
 #* correct solution
 DFT, x ∈ C^26, f_p = 546, suma faz dla f
@@ -198,6 +208,7 @@ begin
     end
     out_4 = rozwiazanie_4()
 end
+
 #= Zadanie 5:
 #* correct solution
 Dyskretny sygnał x ∈ R^69 został przetworzony przez dyskretny nierekurencyjny układ liniowy 
@@ -215,6 +226,7 @@ begin
     end
     out_5 = rozwiazanie_5()
 end
+
 #= Zadanie 6:
 #* correct solution
 system LTI, odpowiedź na impuls x, policz energię/moc/rms dla pierwszych L próbek
@@ -235,21 +247,42 @@ begin
     end
     out_6 = rozwiazanie_6()
 end
+
 #= Zadanie 7:
-#?
+#* correct solution
 wzmocnienie/przesunięcie fazowe systemu LTI
 =#
+# wariant a,b
 begin
-    function rozwiazanie_7(;
-        zz::Vector{ComplexF64}=ComplexF64[0.971540512469121+0.23687345277856264im, 0.971540512469121-0.23687345277856264im, 0.9890329941129085+0.14769474112525408im, 0.9890329941129085-0.14769474112525408im, 1.0+0.0im],
-        pp::Vector{ComplexF64}=ComplexF64[0.795989570283467+0.3885971651907094im, 0.795989570283467-0.3885971651907094im, 0.6886971762947508+0.20584641171497528im, 0.6886971762947508-0.20584641171497528im, 0.6577848537749306+0.0im],
-        k::Float64=0.5163896235619335,
-        F::Vector{Float64}=[0.14, 0.16, 0.28, 0.42],
+    function rozwiazanie_7_1(;
+        b::Vector{Float64}=[0.005474558453857019, -0.021161090277260635, 0.05061387091651935, -0.07935032965393377, 0.09320417435199661, -0.07935032965393378, 0.05061387091651936, -0.021161090277260642, 0.0054745584538570214],
+        a::Vector{Float64}=[1.0, -3.9521388331525866, 9.56265700381189, -14.849104406012085, 16.97637773213497, -13.784716624391761, 8.240829684422375, -3.1615178439273466, 0.7426218157666638],
+        F::Vector{Float64}=[0.17, 0.23, 0.28, 0.48],
     )
-        0.9998910496783241
-        missing
+        ϕ = [lti_phase(f, b, a) for f in F] # lti_amp/phase
+        return mean(ϕ)
+        -0.2671329372585373
     end
+    out_7 = rozwiazanie_7_1()
 end
+
+# wariant zz,pp,k
+begin
+    function rozwiazanie_7_2(;
+        zz::Vector{ComplexF64}=ComplexF64[0.9562125977134925-0.2926729710342487im, 0.6431481557756844+0.7657417643842708im, 0.9562125977134925+0.2926729710342487im, 0.6431481557756844-0.7657417643842708im, 0.9494540691139096-0.3139059901356441im, 0.6842289643189376+0.7292672516896902im, 0.9494540691139096+0.3139059901356441im, 0.6842289643189376-0.7292672516896902im, 0.9154123917349581-0.4025172705090848im, 0.8016754572775892+0.5977595345946131im, 0.9154123917349581+0.4025172705090848im, 0.8016754572775892-0.5977595345946131im],
+        pp::Vector{ComplexF64}=ComplexF64[0.6064983645211166+0.787230370569453im, 0.9585153738231527-0.277256566212053im, 0.6064983645211166-0.787230370569453im, 0.9585153738231527+0.277256566212053im, 0.5363569616798629+0.7946801478013233im, 0.9537353148226411-0.25407497984321314im, 0.5363569616798629-0.7946801478013233im, 0.9537353148226411+0.25407497984321314im, 0.12166088338468982+0.6657516938860896im, 0.9290620344841986-0.14298335418965522im, 0.12166088338468982-0.6657516938860896im, 0.9290620344841986+0.14298335418965522im],
+        k::Float64=0.28119079368088185,
+        F::Vector{Float64}=[0.14, 0.17, 0.2],
+    )
+        a = poly_from_roots(pp)
+        b = poly_from_roots(zz) .* k
+        ϕ = [lti_amp(f, b, a) for f in F] # lti_amp/phase
+        return mean(ϕ)
+        0.5191880641409167
+    end
+    out_7 = rozwiazanie_7_2()
+end
+
 #= Zadanie 8:
 #* correct solution
 dyskretny system liniowy, stacjonarny, wyznacz stabilność (1 - tak/0 - na granicy/-1 - nie)
@@ -261,7 +294,7 @@ begin
         b::Vector{Float64}=[0.20496999142745434, -1.0248499571372718, 2.0496999142745436, -2.0496999142745436, 1.0248499571372718, -0.20496999142745434],
         a::Vector{Float64}=[1.0, -2.04328699669025, 2.205686901762555, -1.0925050400038385, 0.2795267139181644, 0.06196592669626961],
     )
-        p = roots(a) # gdy zamiast a i b w danych jest z i p, pomiń tą linijkę
+        p = roots(a)
         radii = abs.(p)
         if all(radii .< 1)
             return 1.0
@@ -275,6 +308,7 @@ begin
     end
     out_8 = rozwiazanie_8_1()
 end
+
 # wariant z,p,k
 begin
     function rozwiazanie_8_2(;
@@ -295,6 +329,7 @@ begin
     end
     out_8 = rozwiazanie_8_2()
 end
+
 #= Zadanie 9:
 #* correct solution
 odpowiedzi impulsowe filtrów
@@ -315,4 +350,3 @@ begin
     end
     out_9 = rozwiazanie_9()
 end
-
