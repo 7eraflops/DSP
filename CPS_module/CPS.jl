@@ -356,7 +356,7 @@ amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector
 power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2
 psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (sum(abs2, w) * fs)
 
-function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), L::Integer = 0, fs::Real = 1.0)::Vector
+function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), L::Integer=0, fs::Real=1.0)::Vector
     missing
 end
 
@@ -436,7 +436,24 @@ function overlap_save(x::Vector, h::Vector, L::Integer)::Vector
 end
 
 function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
-    missing
+    N = length(x)
+    M = length(b) - 1
+    K = length(a) - 1
+    y = zeros(Float64, N)
+
+    for n in 1:N
+        for k in 0:M
+            if n - k > 0
+                y[n] += b[k+1] * x_padded[n-k]
+            end
+        end
+        for k in 1:K
+            if n - k > 0
+                y[n] -= a[k+1] * y[n-k]
+            end
+        end
+    end
+    return y
 end
 
 function filtfilt(b::Vector, a::Vector, x::Vector)::Vector
@@ -444,27 +461,37 @@ function filtfilt(b::Vector, a::Vector, x::Vector)::Vector
 end
 
 function lti_amp(f::Real, b::Vector, a::Vector)::Real
-    missing
+    M = length(b)
+    K = length(a)
+    num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
+    denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+    H_f = num / denom
+    return abs(H_f)
 end
 
 function lti_phase(f::Real, b::Vector, a::Vector)::Real
-    missing
+    M = length(b)
+    K = length(a)
+    num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
+    denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+    H_f = num / denom
+    return angle(H_f)
 end
 
 function firwin_lp_I(order::Integer, F0::Float64)::Vector
-    missing
+    return [2F0 * sinc(2F0 * n) for n in -order/2:order/2]
 end
 
 function firwin_hp_I(order::Integer, F0::Float64)::Vector
-    missing
+    return [kronecker(Int(n)) - 2F0 * sinc(2F0 * n) for n in -order/2:order/2]
 end
 
 function firwin_bp_I(order::Integer, F1::Float64, F2::Float64)::Vector
-    missing
+    return [2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n) for n in -order/2:order/2]
 end
 
 function firwin_bs_I(order::Integer, F1::Float64, F2::Float64)::Vector
-    missing
+    return [kronecker(Int(n)) - (2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n)) for n in -order/2:order/2]
 end
 
 function firwin_lp_II(N::Integer, F0::Float64)::Vector

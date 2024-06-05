@@ -209,3 +209,11 @@ plot([0:length(result_3)-1], result_3)
 
 result_4 = CPS.overlap_save(f, g, 13)
 plot([0:length(result_4)-1], result_4)
+
+
+F0 = 0.8
+order = 80
+h = CPS.firwin_lp_I(order, F0)
+plot(h)
+h = CPS.firwin_hp_I(order, F0)
+plot(h)
