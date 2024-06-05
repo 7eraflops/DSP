@@ -101,7 +101,7 @@ begin
         H = hcat(H, -1 * reverse(a[2:end]))
         return eigvals(H)
     end
-
+    # obliczanie współczynników wielomianów z jego pierwiastków
     function poly_from_roots(r::AbstractVector)
         p = [1.0 + 0im]
         for i in eachindex(r)
