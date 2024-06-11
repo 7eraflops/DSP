@@ -19,7 +19,7 @@ cw_literka_U(t::Real; T=1.0)::Real = abs(t) < T ? t^2 : 0
 
 ramp_wave(t::Real)::Real = 2 * rem(t, 1, RoundNearest)
 sawtooth_wave(t::Real)::Real = -2 * rem(t, 1, RoundNearest)
-triangular_wave(t::Real)::Real = ifelse(mod(t + 1 / 4, 1.0) < 1 / 2, 4mod(t + 1 / 4, 1.0) - 1, -4mod(t + 1 / 4, 1.0) + 3)
+triangular_wave(t::Real)::Real = 2 / π * asin(sin(2π * t)) # TODO
 square_wave(t::Real)::Real = ifelse(mod(t, 1) < 0.5, 1, -1)
 pulse_wave(t::Real, ρ::Real)::Real = ifelse(mod(t, 1) < ρ, 1, 0)
 impulse_repeater(g::Function, t1::Real, t2::Real)::Function = x -> g(mod(x - t1, t2 - t1) + t1)
@@ -444,7 +444,7 @@ function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
     for n in 1:N
         for k in 0:M
             if n - k > 0
-                y[n] += b[k+1] * x_padded[n-k]
+                y[n] += b[k+1] * x[n-k]
             end
         end
         for k in 1:K
@@ -457,14 +457,17 @@ function lti_filter(b::Vector, a::Vector, x::Vector)::Vector
 end
 
 function filtfilt(b::Vector, a::Vector, x::Vector)::Vector
-    missing
+    y_fwd_filt = lti_filter(b, a, x)
+    y_rvs = reverse(y_fwd_filt)
+    y_rvs_filt = lti_filter(b, a, y_rvs)
+    return reverse(y_rvs_filt)
 end
 
 function lti_amp(f::Real, b::Vector, a::Vector)::Real
     M = length(b)
     K = length(a)
     num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
-    denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+    denom = sum(a[k+1] * cispi(-2 * f * k) for k in 0:K-1)
     H_f = num / denom
     return abs(H_f)
 end
@@ -473,7 +476,7 @@ function lti_phase(f::Real, b::Vector, a::Vector)::Real
     M = length(b)
     K = length(a)
     num = sum(b[m+1] * cispi(-2 * f * m) for m in 0:M-1)
-    denom = sum(a[k+1] * cispi(-2 * f * m) for k in 0:K-1)
+    denom = sum(a[k+1] * cispi(-2 * f * k) for k in 0:K-1)
     H_f = num / denom
     return angle(H_f)
 end
@@ -494,12 +497,14 @@ function firwin_bs_I(order::Integer, F1::Float64, F2::Float64)::Vector
     return [kronecker(Int(n)) - (2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n)) for n in -order/2:order/2]
 end
 
-function firwin_lp_II(N::Integer, F0::Float64)::Vector
-    missing
+function firwin_lp_II(order::Integer, F0::Float64)::Vector
+    N = range(start=order / 2, stop=order / 2, length=order)
+    return [2F0 * sinc(2F0 * n) for n in N]
 end
 
 function firwin_bp_II(N::Integer, F1::Float64, F2::Float64)::Vector
-    missing
+    N = range(start=order / 2, stop=order / 2, length=order)
+    return [2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n) for n in N]
 end
 
 function resample(x::Vector, M::Int, N::Int)

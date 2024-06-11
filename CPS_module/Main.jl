@@ -193,6 +193,12 @@ sum(psd_1) * fs / length(h)
 
 sum(psd_2) * fs / length(h)
 
+# TODO: periodogram
+
+# TODO: stft
+
+# TODO: istft
+
 t = -2π:0.01*π:2.1π
 f = sin.(t)
 g = cos.(t)
@@ -210,10 +216,26 @@ plot([0:length(result_3)-1], result_3)
 result_4 = CPS.overlap_save(f, g, 13)
 plot([0:length(result_4)-1], result_4)
 
+t = -1:0.001:1
+α = 0.97
+b = [1 - α, 0]
+a = [1, -α]
+x = CPS.square_wave.(t)
+y_1 = CPS.lti_filter(b, a, x)
+y_2 = CPS.filtfilt(b, a, x)
+plot(t, [x, y_1, y_2])
 
-F0 = 0.8
+F = 0:0.0001:1
+A = [CPS.lti_amp(f, b, a) for f in F]
+ϕ = [CPS.lti_phase(f, b, a) for f in F]
+plot(F, A)
+plot(F, ϕ)
+
+F0 = 0.5
 order = 80
 h = CPS.firwin_lp_I(order, F0)
 plot(h)
+plot(F, [CPS.lti_amp(f, h, [1]) for f in F])
+plot(F, [CPS.lti_phase(f, h, [1]) for f in F])
 h = CPS.firwin_hp_I(order, F0)
 plot(h)
