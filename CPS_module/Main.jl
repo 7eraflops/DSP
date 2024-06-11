@@ -169,7 +169,7 @@ my_fft_benchmark = @benchmark CPS.fft_radix2_dit_r(x) setup = (x = rand(2^20) .|
 
 @benchmark fft(x) setup = (x = rand(2^20) .|> complex)
 
-fs = 100
+fs = 100.0
 t = -1:(1/fs):1
 h = 4 * sin.(2π * 20t) .+ 1.0 + 0.1 .* randn(length(t))
 
@@ -181,19 +181,19 @@ ps_1 = CPS.power_spectrum(h)
 ps_2 = CPS.power_spectrum(h, CPS.hanning(length(h)))
 scatter(fftfreq(length(h), fs), [log10.(ps_1), log10.(ps_2)])
 
-CPS.power(h)
-sum(ps_1)
-sum(ps_2)
-
 psd_1 = CPS.psd(h, CPS.rect(length(h)), fs)
 psd_2 = CPS.psd(h, CPS.hanning(length(h)), fs)
 scatter(fftfreq(length(h), fs), [log10.(psd_1), log10.(psd_2)])
 
-sum(psd_1) * fs / length(h)
+L = 10
 
-sum(psd_2) * fs / length(h)
+prd_1 = CPS.periodogram(h, CPS.rect(length(h)), L, fs)
+prd_2 = CPS.periodogram(h, CPS.hanning(length(h)), L, fs)
 
-# TODO: periodogram
+scatter(fftfreq(length(h), fs), [log10.(prd_1), log10.(prd_2)])
+scatter(fftfreq(length(h), fs), [log10.(psd_1), log10.(prd_1)])
+scatter(fftfreq(length(h), fs), [log10.(psd_2), log10.(prd_2)])
+
 
 # TODO: stft
 
@@ -210,7 +210,7 @@ plot([0:length(result_1)-1], result_1)
 result_2 = CPS.fast_conv(f, g)
 plot([0:length(result_2)-1], result_2)
 
-result_3 = CPS.overlap_add(f, g, 50)
+result_3 = CPS.overlap_add(f, g, 13)
 plot([0:length(result_3)-1], result_3)
 
 result_4 = CPS.overlap_save(f, g, 13)
@@ -239,3 +239,34 @@ plot(F, [CPS.lti_amp(f, h, [1]) for f in F])
 plot(F, [CPS.lti_phase(f, h, [1]) for f in F])
 h = CPS.firwin_hp_I(order, F0)
 plot(h)
+
+h = CPS.firwin_diff(25)
+scatter(h)
+
+
+
+
+t = 0:0.1π:20π
+x = sin.(t) + cos.(2 * t)
+plot(t, x)
+M = 3
+N = 1
+y = CPS.resample(x, M, N)
+t_res = range(start=t[1], stop=t[end], length=Int(floor(length(t) * M / N)))
+plot(t, x)
+plot!(t_res, y)
+
+
+t = -2:0.01:2
+x1 = rem.(t, 1)
+plot(t, x1)
+x2 = rem.(t, 1, RoundNearest)
+plot(t, x2)
+x3 = 2 .* rem.(t, 1, RoundNearest)
+plot(t, x3)
+
+begin
+    g = x -> x^2
+    x = [1, 2, 3]
+    y = g.(x)
+end

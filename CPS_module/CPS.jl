@@ -1,7 +1,6 @@
 module CPS
 
 using LinearAlgebra
-using QuadGK
 using OffsetArrays
 
 author = Dict{Symbol,String}(
@@ -19,7 +18,7 @@ cw_literka_U(t::Real; T=1.0)::Real = abs(t) < T ? t^2 : 0
 
 ramp_wave(t::Real)::Real = 2 * rem(t, 1, RoundNearest)
 sawtooth_wave(t::Real)::Real = -2 * rem(t, 1, RoundNearest)
-triangular_wave(t::Real)::Real = 2 / π * asin(sin(2π * t)) # TODO
+triangular_wave(t::Real)::Real = 2 / π * asin(sin(2π * t))
 square_wave(t::Real)::Real = ifelse(mod(t, 1) < 0.5, 1, -1)
 pulse_wave(t::Real, ρ::Real)::Real = ifelse(mod(t, 1) < ρ, 1, 0)
 impulse_repeater(g::Function, t1::Real, t2::Real)::Function = x -> g(mod(x - t1, t2 - t1) + t1)
@@ -74,19 +73,30 @@ function pulse_wave_bl(t; ρ=0.2, A=1.0, T=1.0, band=20.0)
     return signal
 end
 
-# TODO: QuadGK -> own quadrature integral implementation
 function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Function
     T::Float64 = t2 - t1
     ω₀::Float64 = (2π / T)
     n_terms::Integer = div(band * 2π, ω₀)
 
-    a0 = 1 / T * quadgk(g, t1, t2)[1]
+    N = 1000
+    ts = range(t1, t2, length=N + 1)
+    Δt = (t2 - t1) / N
+
+    function trapezoidal_integral(f::Function, ts::AbstractVector, Δt::Float64)
+        integral = 0.5 * (f(ts[1]) + f(ts[end]))
+        for i in 2:N
+            integral += f(ts[i])
+        end
+        return integral * Δt
+    end
+
+    a0 = 1 / T * trapezoidal_integral(g, ts, Δt)
     an_coeffs = zeros(Float64, n_terms)
     bn_coeffs = zeros(Float64, n_terms)
 
     for n in 1:n_terms
-        an_coeffs[n] = 2 / T * quadgk(t -> g(t) * cos(ω₀ * n * t), t1, t2)[1]
-        bn_coeffs[n] = 2 / T * quadgk(t -> g(t) * sin(ω₀ * n * t), t1, t2)[1]
+        an_coeffs[n] = 2 / T * trapezoidal_integral(t -> g(t) * cos(ω₀ * n * t), ts, Δt)
+        bn_coeffs[n] = 2 / T * trapezoidal_integral(t -> g(t) * sin(ω₀ * n * t), ts, Δt)
     end
 
     function fourier_series_output(t::Float64)
@@ -356,8 +366,31 @@ amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector
 power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2
 psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (sum(abs2, w) * fs)
 
+using FFTW
+
+# Rectangular window function as default
+function rect(n::Integer)
+    return ones(n)
+end
+
 function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), L::Integer=0, fs::Real=1.0)::Vector
-    missing
+    N = length(x)
+    K = length(w)
+    if L == 0
+        L = K
+    end
+    M = div(N - K, L) + 1
+    Pxx = zeros(K)
+    for m in 0:M-1
+        start = m * L + 1
+        if start + K - 1 > N
+            break
+        end
+        segment = x[start:start+K-1] .* w
+        X = fft(segment)
+        Pxx += abs2.(X) / (sum(abs2, w) * fs)
+    end
+    return Pxx
 end
 
 function stft(x::AbstractVector, w::AbstractVector, L::Integer)::Matrix
@@ -394,7 +427,6 @@ function fast_conv(f::Vector, g::Vector)::Vector
     return y
 end
 
-# FIXME: fix reading array out of bounds
 function overlap_add(x::Vector, h::Vector, L::Integer)::Vector
     M = length(h)
     N = L + M - 1
@@ -409,7 +441,9 @@ function overlap_add(x::Vector, h::Vector, L::Integer)::Vector
         padded_xk = vcat(xk, zeros(N - length(xk)))
         Xk = fft(padded_xk)
         Yk = ifft(H .* Xk)
-        y[k:k+N-1] += real(Yk)
+        yk_start = k
+        yk_end = min(k + N - 1, length(y))
+        y[yk_start:yk_end] += real(Yk[1:(yk_end-yk_start+1)])
     end
 
     return y[1:length(x)+M-1]
@@ -502,13 +536,20 @@ function firwin_lp_II(order::Integer, F0::Float64)::Vector
     return [2F0 * sinc(2F0 * n) for n in N]
 end
 
-function firwin_bp_II(N::Integer, F1::Float64, F2::Float64)::Vector
+function firwin_bp_II(order::Integer, F1::Float64, F2::Float64)::Vector
     N = range(start=order / 2, stop=order / 2, length=order)
     return [2F2 * sinc(2F2 * n) - 2F1 * sinc(2F1 * n) for n in N]
 end
 
+firwin_diff(order::Int) = [n == 0 ? 0 : cospi(n) ./ n for n in -order:1:order]
+
 function resample(x::Vector, M::Int, N::Int)
-    missing
+    original_indices = 1:length(x)
+    new_length = div(length(x) * M, N)
+    new_indices = range(1, length(x), length=new_length)
+    interp_func = interpolate(original_indices, x)
+    y = [interp_func(t) for t in new_indices]
+    return y
 end
 
 end
