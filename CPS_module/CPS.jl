@@ -110,7 +110,6 @@ function impulse_repeater_bl(g::Function, t1::Real, t2::Real, band::Real)::Funct
     return fourier_series_output
 end
 
-# TODO: naive approach, might change later
 function rand_signal_bl(f1::Real, f2::Real)::Function
     f = f1 .+ rand(1000) .* (f2 - f1)
     ϕ = -π .+ rand(1000) * 2π
@@ -366,8 +365,6 @@ amplitude_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector
 power_spectrum(x::AbstractVector, w::AbstractVector=rect(length(x)))::Vector = amplitude_spectrum(x, w) .^ 2
 psd(x::AbstractVector, w::AbstractVector=rect(length(x)), fs::Real=1.0)::Vector = abs2.(fft(x .* w)) / (sum(abs2, w) * fs)
 
-using FFTW
-
 # Rectangular window function as default
 function rect(n::Integer)
     return ones(n)
@@ -394,11 +391,41 @@ function periodogram(x::AbstractVector, w::AbstractVector=rect(length(x)), L::In
 end
 
 function stft(x::AbstractVector, w::AbstractVector, L::Integer)::Matrix
-    missing
+    N = length(x)
+    K = length(w)
+    step = K - L
+    num_frames = div((N - L), step) + 1
+    X = zeros(ComplexF64, (K ÷ 2 + 1, num_frames))
+    for n in 0:num_frames-1
+        start_idx = 1 + n * step
+        frame = x[start_idx:min(start_idx + K - 1, N)]
+        if length(frame) < K
+            frame = vcat(frame, zeros(K - length(frame)))
+        end
+        frame_fft = rdft(frame .* w)
+        X[:, n+1] = frame_fft
+    end
+    return X
 end
 
 function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integer)::AbstractVector{<:Real}
-    missing
+    K = length(w)
+    step = K - L
+    num_frames = size(X, 2)
+    N = (num_frames - 1) * step + K
+
+    x = zeros(Float64, N)
+    window_sum = zeros(Float64, N)
+    for n in 0:(num_frames-1)
+        start_idx = 1 + n * step
+        frame_irdft = irdft(X[:, n+1], K)
+
+        x[start_idx:start_idx+K-1] += frame_irdft .* w
+        window_sum[start_idx:start_idx+K-1] += w
+    end
+    x ./= window_sum
+    last_nonzero_idx = findlast(x -> abs(x) > 1e-16, x)
+    return x = x[1:last_nonzero_idx]
 end
 
 function conv(f::AbstractVector, g::AbstractVector)::Vector

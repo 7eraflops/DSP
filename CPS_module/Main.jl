@@ -163,9 +163,7 @@ signal_recovered ≈ ifft(signal_fft)
 @benchmark CPS.fft_radix2_dit_r!(x) setup = (x = rand(2^20) .|> complex)
 @benchmark fft!(x) setup = (x = rand(2^20) .|> complex)
 
-
 my_fft_benchmark = @benchmark CPS.fft_radix2_dit_r(x) setup = (x = rand(2^20) .|> complex)
-
 
 @benchmark fft(x) setup = (x = rand(2^20) .|> complex)
 
@@ -191,14 +189,30 @@ prd_1 = CPS.periodogram(h, CPS.rect(length(h)), L, fs)
 prd_2 = CPS.periodogram(h, CPS.hanning(length(h)), L, fs)
 
 scatter(fftfreq(length(h), fs), [log10.(prd_1), log10.(prd_2)])
-scatter(fftfreq(length(h), fs), [log10.(psd_1), log10.(prd_1)])
+scatter(fftfreq(length(h), fs), [(psd_1), (prd_1)])
 scatter(fftfreq(length(h), fs), [log10.(psd_2), log10.(prd_2)])
 
 
-# TODO: stft
+fs = 100
+t = 0:1/fs:1-1/fs
+f = 5
+x = sin.(2 * π * f * t)
 
-# TODO: istft
+# Define STFT parameters
+w = CPS.rect(10)
+L = 2
 
+# Compute the STFT
+X = CPS.stft(x, w, L)
+
+# Compute the inverse STFT
+x_reconstructed = CPS.istft(X, w, L)
+last_nonzero_idx = findlast(x_reconstructed -> abs(x_reconstructed) > 1e-16, x_reconstructed)
+
+# Compare the original and reconstructed signals
+plot(x, label="Original Signal")
+plot(x_reconstructed, label="Reconstructed Signal")
+x≈x_reconstructed
 t = -2π:0.01*π:2.1π
 f = sin.(t)
 g = cos.(t)
