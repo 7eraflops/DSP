@@ -193,26 +193,39 @@ scatter(fftfreq(length(h), fs), [(psd_1), (prd_1)])
 scatter(fftfreq(length(h), fs), [log10.(psd_2), log10.(prd_2)])
 
 
-fs = 100
+fs = 15
 t = 0:1/fs:1-1/fs
-f = 5
+f = 1
 x = sin.(2 * π * f * t)
 
 # Define STFT parameters
-w = CPS.rect(10)
+w = CPS.rect(4)
 L = 2
+
+N = fs
+K = length(w)
+
+dim_1 = floor((N - L) / (K - L))
+dim_2 = floor(K / 2) + 1
+
+#=
+ ucinamy próbki które nie mieszczą się do ostatniego okna
+            _____________   ______________  ______________
+    _____________   _____________   ______________  
+    1   2   3   4   5   6   7   8   9   10  11  12  13  14  #//15 
+
+=#
 
 # Compute the STFT
 X = CPS.stft(x, w, L)
 
 # Compute the inverse STFT
 x_reconstructed = CPS.istft(X, w, L)
-last_nonzero_idx = findlast(x_reconstructed -> abs(x_reconstructed) > 1e-16, x_reconstructed)
 
 # Compare the original and reconstructed signals
 plot(x, label="Original Signal")
 plot(x_reconstructed, label="Reconstructed Signal")
-x≈x_reconstructed
+x ≈ x_reconstructed
 t = -2π:0.01*π:2.1π
 f = sin.(t)
 g = cos.(t)

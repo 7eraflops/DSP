@@ -394,7 +394,7 @@ function stft(x::AbstractVector, w::AbstractVector, L::Integer)::Matrix
     N = length(x)
     K = length(w)
     step = K - L
-    num_frames = div((N - L), step) + 1
+    num_frames = div((N - L), step)
     X = zeros(ComplexF64, (K ÷ 2 + 1, num_frames))
     for n in 0:num_frames-1
         start_idx = 1 + n * step
@@ -423,9 +423,7 @@ function istft(X::AbstractMatrix{<:Complex}, w::AbstractVector{<:Real}, L::Integ
         x[start_idx:start_idx+K-1] += frame_irdft .* w
         window_sum[start_idx:start_idx+K-1] += w
     end
-    x ./= window_sum
-    last_nonzero_idx = findlast(x -> abs(x) > 1e-16, x)
-    return x = x[1:last_nonzero_idx]
+    return x ./= window_sum
 end
 
 function conv(f::AbstractVector, g::AbstractVector)::Vector
