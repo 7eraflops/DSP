@@ -291,8 +291,8 @@ begin
     )
         a = poly_from_roots(pp)
         b = poly_from_roots(zz) .* k
-        ϕ = [lti_amp(f, b, a) for f in F] # lti_amp/phase
-        return mean(ϕ)
+        A = [lti_amp(f, b, a) for f in F] # lti_amp/phase
+        return mean(A)
         0.5191880641409167
     end
     out_7 = rozwiazanie_7_2()
@@ -309,6 +309,7 @@ begin
         b::Vector{Float64}=[0.20496999142745434, -1.0248499571372718, 2.0496999142745436, -2.0496999142745436, 1.0248499571372718, -0.20496999142745434],
         a::Vector{Float64}=[1.0, -2.04328699669025, 2.205686901762555, -1.0925050400038385, 0.2795267139181644, 0.06196592669626961],
     )
+        a /= a[1]
         p = roots(a)
         radii = abs.(p)
         if all(radii .< 1)
