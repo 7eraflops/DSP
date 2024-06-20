@@ -2,6 +2,7 @@ module CPS
 
 using LinearAlgebra
 using OffsetArrays
+using FFTW
 
 author = Dict{Symbol,String}(
     :index => "417096",
@@ -352,11 +353,11 @@ function ifft_radix2_dif_r(X::Vector{Complex{T}}) where {T}
 end
 
 function fft(x::AbstractVector)::Vector
-    dft(x) # Może da rade lepiej?
+    FFTW.fft(x) # Może da rade lepiej?
 end
 
 function ifft(X::AbstractVector)::Vector
-    idft(X) # Może da rade lepiej?
+    FFTW.ifft(X) # Może da rade lepiej?
 end
 
 fftfreq(N::Integer, fs::Real)::Vector = [n * N / fs for n in 0:(N-1)]
